@@ -132,6 +132,7 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
       <li><b>Hold the Maw</b> (or hold F) to feed it coins. Coins inside the Maw earn <b>interest</b> every time you buy a toll. When it is full, <b>ring the bell</b>.</li>
       <li>If your tolls are spent and the Maw is still hungry, the ceiling comes down.</li>
       <li><b>Omens</b> fill the Dread tube. Full Dread: the Hunger eats half your purse. Three Omens: the spin is void. <b>Three Omens in a line: the Maw devours everything you won this toll.</b></li>
+      <li><b>Golden spins</b> happen now and then: every pattern pays double. Early on the machine is generous; it grows meaner with every debt.</li>
       <li><b>Fever</b> (right tube): every winning spin in a row adds +0.25× to payouts. A dud puts it out.</li>
       <li>The <b>Peddler's hatch</b> (right wall) sells relics (they sit on the shelf, up to 7) and rites (on the stool, single use, click to perform).</li>
     </ul>
@@ -177,7 +178,7 @@ const PAT = {
   swarm:{n:'Swarm (9+ of one)', m:5, g:'s', shape:[[0,0],[0,2],[0,4],[1,1],[1,3],[2,0],[2,2],[2,4],[1,2]]},
   abyss:{n:'Abyss (all 15)',   m:15,g:'s', shape:'all'},
 };
-const DEBTS = [30,70,130,210,320,470,670,950];
+const DEBTS = [25,60,115,200,330,520,800,1200];
 const FINAL_DEBT = DEBTS.length, ROUNDS = 3;
 const MAX_RELICS = 7, MAX_RITES = 2;
 function debtBase(n){ return n<=DEBTS.length ? DEBTS[n-1] : Math.round(DEBTS[DEBTS.length-1]*Math.pow(1.45,n-DEBTS.length)); }
@@ -233,6 +234,15 @@ const RELICS = [
   {id:'tick',n:'Swollen Tick',d:'Drinks 25% of every win. When you settle a debt it bursts and pays it back double.',r:2,icon:'tick'},
   {id:'ember',n:'Ember Heart',d:'A losing spin only cools your Fever by one step instead of putting it out.',r:2,icon:'ember'},
   {id:'furnace',n:'Bone Furnace',d:'Fever grows twice as fast and can reach x3.',r:3,icon:'furnace'},
+  {id:'lodestone',n:'Lodestone',d:'+10% Echo. Symbols cling to their neighbours.',r:1,icon:'magnet',echo:.10},
+  {id:'wishbone',n:'Wishbone',d:'Once per toll, a spin that would form no pattern is spun again.',r:1,icon:'wishbone'},
+  {id:'loadedreel',n:'Loaded Reel',d:'Every spin that would form no pattern gets one more secret re-spin.',r:2,icon:'reel'},
+  {id:'siamese',n:'Siamese Reel',d:'The middle reel copies the reel to its left half the time.',r:2,icon:'twins'},
+  {id:'shears',n:'Moth Shears',d:'Moths no longer appear. Fewer kinds of symbol, more matches.',r:2,icon:'shears',wmul:{moth:0}},
+  {id:'snuffer',n:'Candle Snuffer',d:'Candles no longer appear. Fewer kinds of symbol, more matches.',r:2,icon:'snuffer',wmul:{candle:0}},
+  {id:'mirrorhall',n:'Hall of Mirrors',d:'+8% Echo, and Echo also reaches diagonally.',r:3,icon:'hall',echo:.08},
+  {id:'glever',n:'Gilded Lever',d:'Golden spins come twice as often.',r:2,icon:'glever'},
+  {id:'gambler',n:"Gambler's Tooth",d:'Golden spins pay x3 instead of x2.',r:1,icon:'tooth'},
 ];
 const RELIC_BY = Object.fromEntries(RELICS.map(r=>[r.id,r]));
 const RITES = [
@@ -273,7 +283,10 @@ function patMult(S,t){
   if(t==='h5'&&has(S,'coffin')) m*=3;
   return m;
 }
-function echoChance(S){ return Math.min(.6, .06+S.perm.echo+sumProp(S,'echo')+(S.blackCandle>0?.3:0)); }
+function earlyLuck(S){ return Math.max(0,.14-.028*(S.debt-1)); }
+function goldenChance(S){ return Math.max(.03,.12-.012*(S.debt-1))*(has(S,'glever')?2:1); }
+function luckRolls(S){ let n=S.debt<=2?1:0; if(S.dry>=2) n+=1; if(S.dry>=4) n+=1; if(has(S,'loadedreel')) n+=1; return n; }
+function echoChance(S){ return Math.min(.65, .06+earlyLuck(S)+Math.min(.24,.06*S.dry)+S.perm.echo+sumProp(S,'echo')+(S.blackCandle>0?.3:0)); }
 function maxDread(S){ return Math.max(4,10+S.perm.dread+sumProp(S,'dread')); }
 function feverCap(S){ return has(S,'furnace')?Math.min(8,S.perm.feverCap+2):S.perm.feverCap; }
 function feverMult(S){ return 1+.25*Math.min(S.fever,feverCap(S)); }
@@ -292,11 +305,19 @@ function canBuy(S,n){ return S.round<ROUNDS && S.spins===0 && S.pocket>=bundleCo
 function pickWeighted(items,weights,rng){ let t=0; for(const w of weights) t+=w; let x=rng()*t; for(let i=0;i<items.length;i++){ x-=weights[i]; if(x<0) return items[i]; } return items[items.length-1]; }
 function randomSymbol(S,rng){ return pickWeighted(SYM_IDS, SYM_IDS.map(s=>symWeight(S,s)), rng); }
 function rollGrid(S,rng){
+  let g=rollRaw(S,rng), n=luckRolls(S);
+  while(n-->0&&!findPatterns(g).length) g=rollRaw(S,rng);
+  if(!findPatterns(g).length&&has(S,'wishbone')&&!S.wishUsed){ S.wishUsed=true; S.wishFired=true; for(let k=0;k<3&&!findPatterns(g).length;k++) g=rollRaw(S,rng); }
+  return g;
+}
+function rollRaw(S,rng){
   const ws=SYM_IDS.map(s=>symWeight(S,s)), e=echoChance(S), g=[[],[],[]];
   for(let c=0;c<5;c++) for(let r=0;r<3;r++){
     let s=null;
     if(c>0 && rng()<e) s=g[r][c-1];
     else if(r>0 && rng()<e*.5) s=g[r-1][c];
+    else if(r>0 && c>0 && has(S,'mirrorhall') && rng()<e*.6) s=g[r-1][c-1];
+    if(c===2 && has(S,'siamese') && rng()<.5) s=g[r][1];
     if(!s || (s==='omen'&&S.omenBane>0)) s=pickWeighted(SYM_IDS,ws,rng);
     g[r][c]=s;
   }
@@ -344,6 +365,7 @@ function scoreSpin(S,g){
   }
   if(has(S,'mouth')){ ctx.mult*=1.5; ctx.dreadAdd+=1; ctx.trig.push('mouth'); }
   if(S.boneDice>0){ ctx.mult*=3; ctx.notes.push('Loaded Bones x3'); }
+  if(S.golden&&pats.length){ const gm=has(S,'gambler')?3:2; ctx.mult*=gm; ctx.golden=gm; ctx.notes.unshift('Golden spin x'+gm); }
   const sub=pats.reduce((a,p)=>a+p.pay,0);
   let total=Math.round(sub*ctx.mult)+ctx.extra;
   if(total===0&&has(S,'breath')){ total=2; ctx.trig.push('breath'); }
@@ -361,6 +383,7 @@ function applySpin(S,ctx){
   S.tick+=ctx.ticked||0;
   if(ctx.devour){ const t=Math.min(S.pocket,S.roundWon); S.pocket-=t; ctx.devoured=t; S.roundWon=0; }
   const won=ctx.pats.length>0&&!ctx.voided&&!ctx.devour;
+  S.dry=won?0:(S.dry||0)+1; S.golden=false;
   if(won) S.fever=Math.min(feverCap(S),S.fever+(has(S,'furnace')?2:1)); else S.fever=has(S,'ember')?Math.max(0,S.fever-1):0;
   ctx.grow=[];
   if(won&&has(S,'leech')&&ctx.pats.some(p=>p.s==='moth')){ S.bonus.moth=(S.bonus.moth||0)+1; ctx.grow.push(['leech','Moths +1']); }
@@ -370,7 +393,7 @@ function applySpin(S,ctx){
   if(S.boneDice>0) S.boneDice--; if(S.blackCandle>0) S.blackCandle--; if(S.omenBane>0) S.omenBane--;
 }
 function newState(){
-  return {debt:1,round:0,spins:0,pocket:20,paid:0,roundWon:0,relics:[],rites:[],dread:0,rerollCost:2,debtMul:1,blackCandle:0,boneDice:0,omenBane:0,
+  return {debt:1,round:0,spins:0,dry:0,golden:false,wishUsed:false,pocket:20,paid:0,roundWon:0,relics:[],rites:[],dread:0,rerollCost:2,debtMul:1,blackCandle:0,boneDice:0,omenBane:0,
     shop:[],offers:[],endless:false,fever:0,tick:0,tally:0,bonus:{},wmul:{},bargains:[],
     perm:{spins:0,quota:1,omen:1,dread:0,echo:0,hunger:.5,feverStart:0,feverCap:6,cost:1},stats:{spins:0,best:0,earned:0}};
 }
@@ -410,7 +433,7 @@ function buyBundle(S,n,rng){
   if(!canBuy(S,n)) return null;
   const cost=bundleCost(S,n); S.pocket-=cost; S.round++; S.spins=bundleSpins(S,n); S.roundWon=0;
   const interest=Math.min(interestCap(S),Math.floor(S.paid*interestRate(S))); S.paid+=interest;
-  S.fever=Math.max(S.fever,Math.min(feverCap(S),S.perm.feverStart));
+  S.fever=Math.max(S.fever,Math.min(feverCap(S),S.perm.feverStart)); S.wishUsed=false;
   if(n===3) S.offers=genOfferings(S,rng);
   return {cost,interest,spins:S.spins};
 }
@@ -437,7 +460,7 @@ function useRite(S,id){
   else if(id==='bane') S.omenBane+=5;
   S.rites.splice(i,1); return true;
 }
-if(typeof module!=='undefined') module.exports={SYM,SYM_IDS,RELICS,RITES,BARGAINS,newState,beginDebt,rollGrid,scoreSpin,applySpin,buyBundle,deposit,settle,owed,bundleCost,relicPrice,ritePrice,takeOffering,has,stuck,ROUNDS,FINAL_DEBT};
+if(typeof module!=='undefined') module.exports={goldenChance,findPatterns,SYM,SYM_IDS,RELICS,RITES,BARGAINS,newState,beginDebt,rollGrid,scoreSpin,applySpin,buyBundle,deposit,settle,owed,bundleCost,relicPrice,ritePrice,takeOffering,has,stuck,ROUNDS,FINAL_DEBT};
 </script>
 
 <!-- ===================== PRESENTATION ===================== -->
@@ -1087,6 +1110,48 @@ const AU={ctx:null,master:null,on:true,
 };
 
 
+
+/* ---- extra relic icons ---- */
+Object.assign(DRAW,{
+  magnet(g){ g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=8;
+    g.fillStyle=lg(g,-30,-30,30,30,[[0,'#5a5a64'],[.5,'#2a2a30'],[1,'#101014']]); g.strokeStyle='#050506'; g.lineWidth=2;
+    g.beginPath(); g.moveTo(-30,-10); g.lineTo(-14,-34); g.lineTo(18,-30); g.lineTo(36,-4); g.lineTo(26,28); g.lineTo(-8,36); g.lineTo(-34,18); g.closePath(); g.fill(); g.stroke();
+    g.shadowBlur=0; g.strokeStyle='rgba(180,190,210,.5)'; g.lineWidth=1.2;
+    for(let i=0;i<26;i++){ const a=rnd()*TAU, r1=38+rnd()*4, r2=r1+6+rnd()*8; g.beginPath(); g.moveTo(Math.cos(a)*r1,Math.sin(a)*r1); g.lineTo(Math.cos(a)*r2,Math.sin(a)*r2); g.stroke(); }
+    g.fillStyle='rgba(200,210,230,.35)'; g.beginPath(); g.moveTo(-14,-30); g.lineTo(10,-26); g.lineTo(-4,-12); g.closePath(); g.fill(); g.restore(); },
+  wishbone(g){ g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=8; g.lineCap='round'; g.lineJoin='round';
+    const path=()=>{ g.beginPath(); g.moveTo(-26,40); g.quadraticCurveTo(-22,0,0,-30); g.quadraticCurveTo(22,0,26,40); g.moveTo(0,-30); g.lineTo(0,-44); };
+    path(); g.strokeStyle='#3e301c'; g.lineWidth=13; g.stroke(); g.shadowBlur=0; path(); g.strokeStyle=lg(g,-20,0,20,0,IVORY); g.lineWidth=8; g.stroke();
+    g.fillStyle='#e8dcc0'; circ(g,0,-44,7); g.fill(); circ(g,-26,40,6); g.fill(); circ(g,26,40,6); g.fill(); g.restore(); },
+  reel(g){ g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=8;
+    g.fillStyle=lg(g,-34,0,34,0,[[0,'#6a5a40'],[.5,'#efe2c0'],[1,'#6a5a40']]); rrect(g,-30,-40,60,80,8); g.fill(); g.shadowBlur=0;
+    for(const [y,id] of [[-22,'crown'],[2,'crown'],[26,'crown']]){ g.save(); g.translate(0,y); g.scale(.22,.22); DRAW[id](g); g.restore(); }
+    g.fillStyle=lg(g,-36,0,-28,0,BRASS); g.fillRect(-38,-44,10,88); g.fillStyle=lg(g,28,0,36,0,BRASS); g.fillRect(28,-44,10,88);
+    g.fillStyle=rg(g,33,30,1,9,[[0,'#8a8a90'],[1,'#202024']]); circ(g,33,30,9); g.fill(); g.restore(); },
+  twins(g){ g.save(); for(const x of [-18,18]){ g.save(); g.translate(x,0); g.scale(.62,.62); DRAW.reel(g); g.restore(); }
+    g.strokeStyle='#8a1a10'; g.lineWidth=3; for(let y=-16;y<=16;y+=8){ g.beginPath(); g.moveTo(-6,y); g.lineTo(6,y+3); g.stroke(); } g.restore(); },
+  shears(g){ g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=6;
+    for(const sx of [-1,1]){ g.save(); g.rotate(sx*.32); g.fillStyle=lg(g,-4,0,4,0,[[0,'#5a5a5a'],[.5,'#e0e0e0'],[1,'#5a5a5a']]); g.beginPath(); g.moveTo(-3,-46); g.lineTo(4,-46); g.lineTo(5,4); g.lineTo(-4,4); g.closePath(); g.fill();
+      g.strokeStyle='#2a2a2a'; g.lineWidth=5; circ(g,0,22,12); g.stroke(); g.restore(); }
+    g.fillStyle='#1a1a1a'; circ(g,0,2,4); g.fill();
+    g.save(); g.translate(26,-28); g.rotate(.6); g.scale(.28,.28); DRAW.moth(g); g.restore();
+    g.strokeStyle='rgba(160,20,10,.9)'; g.lineWidth=3; g.beginPath(); g.moveTo(14,-40); g.lineTo(38,-16); g.stroke(); g.restore(); },
+  snuffer(g){ g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=6;
+    g.strokeStyle=lg(g,-40,0,40,0,BRASS); g.lineWidth=5; g.lineCap='round'; g.beginPath(); g.moveTo(-40,40); g.lineTo(8,-6); g.stroke();
+    g.fillStyle=lg(g,0,-30,30,0,BRASS); g.beginPath(); g.moveTo(4,-4); g.quadraticCurveTo(14,-30,30,-34); g.quadraticCurveTo(40,-20,26,0); g.closePath(); g.fill();
+    g.shadowBlur=0; g.strokeStyle='rgba(200,200,200,.45)'; g.lineWidth=3; g.beginPath(); g.moveTo(30,-36); g.bezierCurveTo(20,-46,40,-50,28,-60); g.stroke();
+    g.save(); g.translate(-14,22); g.scale(.4,.4); DRAW.candle(g); g.restore(); g.restore(); },
+  hall(g){ g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=6;
+    [[-30,.7],[30,.7],[0,1]].forEach(([x,k])=>{ g.save(); g.translate(x,6); g.scale(k,k);
+      g.fillStyle=lg(g,-18,-40,18,40,GOLD); g.beginPath(); g.moveTo(-20,40); g.lineTo(-20,-18); g.quadraticCurveTo(0,-48,20,-18); g.lineTo(20,40); g.closePath(); g.fill();
+      g.fillStyle=lg(g,-14,-30,14,30,[[0,'#dfe8ec'],[.5,'#6a7a84'],[1,'#2a3238']]); g.beginPath(); g.moveTo(-14,34); g.lineTo(-14,-15); g.quadraticCurveTo(0,-38,14,-15); g.lineTo(14,34); g.closePath(); g.fill();
+      g.fillStyle='rgba(160,20,10,.8)'; circ(g,0,0,4); g.fill(); g.restore(); }); g.restore(); },
+  glever(g){ g.save(); g.shadowColor='rgba(255,180,40,.8)'; g.shadowBlur=14;
+    g.fillStyle=lg(g,-30,30,30,50,GOLD); rrect(g,-30,26,60,18,6); g.fill();
+    g.strokeStyle=lg(g,-6,0,6,0,GOLD); g.lineWidth=8; g.lineCap='round'; g.beginPath(); g.moveTo(-6,30); g.lineTo(14,-28); g.stroke();
+    g.fillStyle=rg(g,14,-34,2,16,[[0,'#fff6c0'],[.5,'#e8b040'],[1,'#7a4a08']],10,-38); circ(g,16,-34,15); g.fill();
+    for(let i=0;i<5;i++){ const a=rnd()*TAU; g.fillStyle='#fff3b0'; circ(g,16+Math.cos(a)*26,-34+Math.sin(a)*26,2); g.fill(); } g.restore(); },
+});
 /* ============================== RENDERER ============================== */
 const canvas=$('gl');
 const R=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
@@ -1726,12 +1791,15 @@ async function pull(){
   busy=true; clearTimeout(doomTimer); S.spins--; refresh(); setView('center');
   cells.flat().forEach(m=>m.material.opacity=0);
   leverT=1; AU.lever();
+  S.golden=rnd()<goldenChance(S); goldMode=S.golden?1:0;
+  if(S.golden){ banner('GOLDEN SPIN',`every pattern pays x${has(S,'gambler')?3:2}`); AU.jackpot(); bulbFlash=3; flash('#8a6a00',.25); }
   const grid=rollGrid(S,rnd);
+  if(S.wishFired){ S.wishFired=false; pulseRelic('wishbone','Spun again',300); }
   await sleep(220*(turbo?.5:1));
   AU.spinLoop();
   const pre=findPatterns(grid), om=grid.flat().filter(x=>x==='omen').length, line=omenLine(grid)&&!has(S,'ash');
   const BIG=['h4','h5','vee','peak','swarm','abyss'];
-  const tease=pre.some(p=>BIG.includes(p.t))||pre.length>=3, danger=(om>=3||line)&&!has(S,'ash');
+  const tease=pre.some(p=>BIG.includes(p.t))||pre.length>=2||(S.golden&&pre.length>=1), danger=(om>=3||line)&&!has(S,'ash');
   const tf=turbo?.5:1;
   if(tease||danger) setTimeout(()=>{ AU.tension((tease?2.4:1.8)*tf); bulbFlash=2.4*tf; if(danger){ mawPulse=2; eyeball.material.emissiveIntensity=2; } },(600+2*220)*tf);
   const stops=[];
@@ -1761,7 +1829,7 @@ async function resolveSpin(grid){
     p.cells.forEach(([r,c])=>setCell(r,c,p.mirrored?0x9fe0ff:0xffc060,1));
     const mid=p.cells[Math.floor(p.cells.length/2)], w=cellWorld(mid[0],mid[1]);
     floatText(w,'+'+p.pay,(ctx.voided||ctx.devour)?'bad':'',`${PAT[p.t].n} · ${SYM[p.s].n} ${p.base}×${p.mult}${p.mirrored?' ×2':''}`);
-    AU.chime(i++); bulbFlash=1.2;
+    AU.chime(i++); bulbFlash=1.2; fovKick=Math.min(1.6,fovKick+.55); if(!ctx.voided&&!ctx.devour) coinBurst(Math.min(6,1+Math.floor(p.pay/8)));
     await sleep(Math.max(200,500-i*60)*tf);
   }
   ctx.trig.forEach((t,k)=>pulseRelic(t,null,k*140));
@@ -1771,9 +1839,11 @@ async function resolveSpin(grid){
   else if(ctx.total>0){
     const center=cellWorld(1,2); center.y+=.55;
     const notes=ctx.notes.slice(); if(ctx.fever&&ctx.fever>1) notes.unshift('Fever x'+ctx.fever.toFixed(2)); if(ctx.ticked) notes.push('Tick drinks '+ctx.ticked);
+    const COMBO=['','','DOUBLE!','TRIPLE!','QUADRUPLE!','QUINTUPLE!','MAYHEM!'];
+    if(ctx.pats.length>=2){ const w=cellWorld(0,2); w.y+=.75; floatText(w,`<span style="font-size:${30+ctx.pats.length*8}px;color:#fff0a0">${COMBO[Math.min(6,ctx.pats.length)]}</span>`); AU.fever(ctx.pats.length+3); }
     if(ctx.pats.length>1||ctx.mult!==1||ctx.extra) floatText(center,ctx.total+' coins','',notes.join(' · '));
     for(let k=0;k<Math.min(10,1+Math.floor(ctx.total/5));k++) AU.coin(k*.05);
-    const big=Math.max(25,q*.3);
+    const big=Math.max(20,q*.25);
     if(ctx.pats.some(p=>p.t==='abyss')){ banner('THE ABYSS OPENS','+'+ctx.total+' coins'); AU.jackpot(); coinBurst(60); shake=.6; flash('#806000',.4); }
     else if(ctx.total>=q*.6&&ctx.total>=40){ banner('THE MACHINE WEEPS GOLD','+'+ctx.total+' coins'); AU.jackpot(); coinBurst(45); shake=.45; flash('#806000',.35); }
     else if(ctx.total>=big){ banner('BIG TOLL','+'+ctx.total+' coins'); AU.jackpot(); coinBurst(22); shake=.25; }
@@ -1870,9 +1940,9 @@ addEventListener('keydown',e=>{
 addEventListener('keyup',e=>{ if(e.key.toLowerCase()==='f') stopFeed(); });
 
 /* ============================== LOOP ============================== */
-let bulbFlash=0, last=performance.now(), time=0;
+let bulbFlash=0, last=performance.now(), time=0, fovKick=0, goldMode=0, baseFov=55;
 function easeOutBack(t){ const c1=1.2,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); }
-function resize(){ const w=innerWidth,h=innerHeight,a=w/h; R.setSize(w,h,false); camera.aspect=a; camera.fov=Math.max(55,2*Math.atan(Math.tan(23*Math.PI/180)/a)*180/Math.PI); camera.updateProjectionMatrix();
+function resize(){ const w=innerWidth,h=innerHeight,a=w/h; R.setSize(w,h,false); camera.aspect=a; baseFov=Math.max(55,2*Math.atan(Math.tan(23*Math.PI/180)/a)*180/Math.PI); camera.fov=baseFov; camera.updateProjectionMatrix();
   if(composer){ composer.setPixelRatio(R.getPixelRatio()); composer.setSize(w,h); } }
 addEventListener('resize',resize); resize();
 const tmpV=new THREE.Vector3();
@@ -1922,6 +1992,9 @@ function frame(now){
   camera.position.set(camPos.x+sx+(view==='title'?Math.sin(time*.15)*.3:0),camPos.y+Math.sin(time*.9)*.01+sy,camPos.z);
   const look=camLook.clone(); if(!isTouch&&view!=='title'){ look.x+=mouseX*.3; look.y-=mouseY*.18; } camera.lookAt(look);
   flashV=Math.max(0,flashV-dt*3);
+  if(fovKick>0||camera.fov!==baseFov){ fovKick=Math.max(0,fovKick-dt*3); camera.fov=baseFov-fovKick*2.2; camera.updateProjectionMatrix(); }
+  if(!busy&&goldMode>0) goldMode=Math.max(0,goldMode-dt*1.5);
+  reels.forEach(r=>{ const m=r.mesh.material[0]; m.emissive.setRGB(1,1-goldMode*.25,1-goldMode*.75); m.emissiveIntensity=.14+goldMode*.45; });
   if(composer){ finalPass.uniforms.time.value=time; finalPass.uniforms.flash.value=flashV; finalPass.uniforms.flashColor.value.copy(flashCol); composer.render(); } else R.render(scene,camera);
   requestAnimationFrame(frame);
 }
