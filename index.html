@@ -134,6 +134,7 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
       <li><b>Omens</b> fill the Dread tube. Full Dread: the Hunger eats half your purse. Three Omens: the spin is void. <b>Three Omens in a line: the Maw devours everything you won this toll.</b></li>
       <li>After every settled debt you <b>sharpen a symbol</b>: its level doubles its worth. Levels glow on the reels.</li>
       <li>The <b>Jackpot gauge</b> under the arch fills with every spin. When it is full, the next pull is a Jackpot spin.</li>
+      <li>Relics <b>stack</b>: buy the same relic again and its effect grows (two Jars of Moths make Moths four times as common). Copies share one shelf slot and cost more.</li>
       <li>Click a relic on the shelf or a rite on the stool to inspect it, sell it or perform it. Press H to see all of your relics.</li>
       <li><b>Golden spins</b> happen now and then: every pattern pays double. </li>
       <li><b>Fever</b> (right tube): every winning spin in a row adds +0.25× to payouts. A dud puts it out.</li>
@@ -183,7 +184,7 @@ const PAT = {
   swarm:{n:'Swarm (9+ of one)', m:5, g:'s', shape:[[0,0],[0,2],[0,4],[1,1],[1,3],[2,0],[2,2],[2,4],[1,2]]},
   abyss:{n:'Abyss (all 15)',   m:15,g:'s', shape:'all'},
 };
-const DEBTS = [25,70,190,520,1450,4000,11000,30000];
+const DEBTS = [25,100,380,1400,5200,19000,70000,250000];
 const FINAL_DEBT = DEBTS.length, ROUNDS = 3;
 const MAX_RELICS = 7, MAX_RITES = 2;
 function debtBase(n){ return n<=DEBTS.length ? DEBTS[n-1] : Math.round(DEBTS[DEBTS.length-1]*Math.pow(1.45,n-DEBTS.length)); }
@@ -283,49 +284,52 @@ const BARGAINS = [
 const BARGAIN_BY = Object.fromEntries(BARGAINS.map(b=>[b.id,b]));
 
 function has(S,id){ return S.relics.includes(id); }
+function cnt(S,id){ let n=0; for(const r of S.relics) if(r===id) n++; return n; }
+function uniqueRelics(S){ return [...new Set(S.relics)]; }
+function canAddRelic(S,id){ return S.relics.includes(id)||uniqueRelics(S).length<MAX_RELICS; }
 function relics(S){ return S.relics.map(id=>RELIC_BY[id]).filter(Boolean); }
 function sumProp(S,p){ return relics(S).reduce((a,r)=>a+(r[p]||0),0); }
 function lv(S,s){ return (S.lv&&S.lv[s])||1; }
 function levelMult(S,s){ return Math.pow(2,lv(S,s)-1); }
 function symValue(S,s){ let v=SYM[s].v+(S.bonus[s]||0); for(const r of relics(S)) if(r.val&&r.val[s]) v+=r.val[s]; return v*levelMult(S,s); }
 function isWild(S,s){ return s==='mask'||(s==='omen'&&!!S&&has(S,'blackmass')); }
-function jpGain(S,ctx){ const g=ctx.pats.length?4+3*ctx.pats.length:9; return g*(has(S,'censer')?2:1); }
+function jpGain(S,ctx){ const g=ctx.pats.length?4+3*ctx.pats.length:9; return g*(1+cnt(S,'censer')); }
 function levelChoices(S,rng){ const pool=SYM_IDS.filter(s=>s!=='omen'&&s!=='mask'&&symWeight(S,s)>0); const out=[]; while(out.length<3&&pool.length) out.push(pool.splice(Math.floor(rng()*pool.length),1)[0]); return out; }
-function levelUp(S,s){ S.lv[s]=lv(S,s)+(has(S,'oil')?2:1); }
+function levelUp(S,s){ S.lv[s]=lv(S,s)+1+cnt(S,'oil'); }
 function jackpotGrid(S,rng){ const pool=SYM_IDS.filter(s=>s!=='omen'&&s!=='mask'&&symWeight(S,s)>0); const best=pool.reduce((a,b)=>symValue(S,b)>symValue(S,a)?b:a);
   const pick=rng()<.6?best:pool[Math.floor(rng()*pool.length)]; const g=rollRaw(S,rng);
   for(let c=0;c<5;c++) g[1][c]=pick; const extra=rng(); if(extra<.4){ for(let c=0;c<5;c++) g[0][c]=pick; } else if(extra<.7){ [[0,0],[2,2],[0,4],[2,0],[0,2],[2,4]].forEach(([r,c])=>{ if(rng()<.6) g[r][c]=pick; }); }
   for(let r=0;r<3;r++) for(let c=0;c<5;c++) if(g[r][c]==='omen') g[r][c]=pick; return g; }
-function omenWeight(S){ return (SYM.omen.w+.6*(S.debt-1))*(has(S,'widow')?.5:1)*S.perm.omen; }
+function omenWeight(S){ return (SYM.omen.w+.6*(S.debt-1))*Math.pow(.5,cnt(S,'widow'))*S.perm.omen; }
 function symWeight(S,s){
   if(s==='omen') return S.omenBane>0?0:omenWeight(S);
-  if(s==='mask') return has(S,'mask')?4:0;
+  if(s==='mask') return 4*cnt(S,'mask');
   let w=SYM[s].w*(S.wmul[s]||1); for(const r of relics(S)) if(r.wmul&&r.wmul[s]) w*=r.wmul[s]; return w;
 }
 function patMult(S,t){
   let m=PAT[t].m; const g=PAT[t].g;
   for(const r of relics(S)) if(r.pmul&&r.pmul[g]) m+=r.pmul[g];
-  if(g==='s'&&has(S,'hive')) m*=2;
-  if(t==='h5'&&has(S,'coffin')) m*=3;
+  if(g==='s') m*=Math.pow(2,cnt(S,'hive'));
+  if(t==='h5') m*=Math.pow(3,cnt(S,'coffin'));
   return m;
 }
 function earlyLuck(S){ return .08; }
-function goldenChance(S){ return .08*(has(S,'glever')?2:1); }
-function luckRolls(S){ let n=1; if(S.dry>=2) n+=1; if(S.dry>=4) n+=1; if(has(S,'loadedreel')) n+=1; return n; }
+function goldenChance(S){ return Math.min(.6,.08*(1+cnt(S,'glever'))); }
+function luckRolls(S){ let n=1; if(S.dry>=2) n+=1; if(S.dry>=4) n+=1; n+=cnt(S,'loadedreel'); return n; }
 function echoChance(S){ return Math.min(.65, .06+earlyLuck(S)+Math.min(.24,.06*S.dry)+S.perm.echo+sumProp(S,'echo')+(S.blackCandle>0?.3:0)); }
 function maxDread(S){ return Math.max(4,10+S.perm.dread+sumProp(S,'dread')); }
-function feverCap(S){ return has(S,'furnace')?Math.min(8,S.perm.feverCap+2):S.perm.feverCap; }
+function feverCap(S){ return Math.min(12,S.perm.feverCap+2*cnt(S,'furnace')); }
 function feverMult(S){ return 1+.25*Math.min(S.fever,feverCap(S)); }
 function interestRate(S){ return .10+sumProp(S,'interest'); }
 function interestCap(S){ return 15+sumProp(S,'intcap'); }
-function priceMul(S){ return Math.pow(1.6,S.debt-1)*(has(S,'funeral')?.8:1); }
-function relicPrice(S,r){ return Math.max(1,Math.round([0,9,18,32][r.r]*priceMul(S))); }
+function priceMul(S){ return Math.pow(1.6,S.debt-1)*Math.pow(.8,cnt(S,'funeral')); }
+function relicPrice(S,r){ return Math.max(1,Math.round([0,9,18,32][r.r]*priceMul(S)*(1+.75*cnt(S,r.id)))); }
 function ritePrice(S,r){ return Math.max(1,Math.round(r.p*priceMul(S))); }
 function sellPrice(S,r){ return Math.floor(relicPrice(S,r)/2); }
 function rerollCost(S){ return has(S,'rat')?1:S.rerollCost; }
-function owed(S){ return Math.max(1,Math.round(debtBase(S.debt)*S.perm.quota*S.debtMul*(has(S,'tongue')?.9:1))); }
-function bundleCost(S,n){ const base=(n===7?5:2)*Math.pow(1.7,S.debt-1); return Math.max(1,Math.round(base*S.perm.cost*(has(S,'clock')?.75:1))); }
-function bundleSpins(S,n){ return n+S.perm.spins+(has(S,'handle')?1:0); }
+function owed(S){ return Math.max(1,Math.round(debtBase(S.debt)*S.perm.quota*S.debtMul*Math.pow(.9,cnt(S,'tongue')))); }
+function bundleCost(S,n){ const base=(n===7?5:2)*Math.pow(1.7,S.debt-1); return Math.max(1,Math.round(base*S.perm.cost*Math.pow(.75,cnt(S,'clock')))); }
+function bundleSpins(S,n){ return n+S.perm.spins+cnt(S,'handle'); }
 function canBuy(S,n){ return S.round<ROUNDS && S.spins===0 && S.pocket>=bundleCost(S,n); }
 
 function pickWeighted(items,weights,rng){ let t=0; for(const w of weights) t+=w; let x=rng()*t; for(let i=0;i<items.length;i++){ x-=weights[i]; if(x<0) return items[i]; } return items[items.length-1]; }
@@ -334,7 +338,7 @@ function rollGrid(S,rng){
   if((S.jp||0)>=100){ S.jpSpin=true; return jackpotGrid(S,rng); }
   let g=rollRaw(S,rng), n=luckRolls(S);
   while(n-->0&&!findPatterns(g,S).length) g=rollRaw(S,rng);
-  if(!findPatterns(g,S).length&&has(S,'wishbone')&&!S.wishUsed){ S.wishUsed=true; S.wishFired=true; for(let k=0;k<3&&!findPatterns(g,S).length;k++) g=rollRaw(S,rng); }
+  if(!findPatterns(g,S).length&&cnt(S,'wishbone')>(S.wishUsed||0)){ S.wishUsed=(S.wishUsed||0)+1; S.wishFired=true; for(let k=0;k<3&&!findPatterns(g,S).length;k++) g=rollRaw(S,rng); }
   return g;
 }
 function rollRaw(S,rng){
@@ -343,8 +347,8 @@ function rollRaw(S,rng){
     let s=null;
     if(c>0 && rng()<e) s=g[r][c-1];
     else if(r>0 && rng()<e*.5) s=g[r-1][c];
-    else if(r>0 && c>0 && has(S,'mirrorhall') && rng()<e*.6) s=g[r-1][c-1];
-    if(c===2 && has(S,'siamese') && rng()<.5) s=g[r][1];
+    else if(r>0 && c>0 && has(S,'mirrorhall') && rng()<Math.min(.9,e*.6*cnt(S,'mirrorhall'))) s=g[r-1][c-1];
+    if(c===2 && has(S,'siamese') && rng()<1-Math.pow(.5,cnt(S,'siamese'))) s=g[r][1];
     if(!s || (s==='omen'&&S.omenBane>0)) s=pickWeighted(SYM_IDS,ws,rng);
     g[r][c]=s;
   }
@@ -380,30 +384,30 @@ function scoreSpin(S,g){
   const omens=g.flat().filter(s=>s==='omen').length;
   const ctx={jackpot:!!S.jpSpin,pats,omens,mult:1,extra:0,notes:[],voided:false,dreadAdd:omens,trig:[]};
   if(pats.length){
-    if(has(S,'mirror')){ const best=pats.reduce((a,b)=>b.pay>a.pay?b:a); best.pay*=2; best.mirrored=true; ctx.trig.push('mirror'); }
-    if(has(S,'dice')){ ctx.extra+=pats.length; ctx.trig.push('dice'); }
-    if(has(S,'flame')&&pats.some(p=>p.s==='moth')&&pats.some(p=>p.s==='candle')){ ctx.mult*=2; ctx.notes.push('Moth to Flame x2'); ctx.trig.push('flame'); }
-    if(has(S,'skull')&&pats.length>=3){ ctx.mult*=1.5; ctx.notes.push('Grinning Skull x1.5'); ctx.trig.push('skull'); }
-    if(has(S,'chain')){ const k=g.flat().filter(s=>s==='crown').length; if(k){ ctx.mult*=1+.1*k; ctx.trig.push('chain'); } }
+    if(has(S,'mirror')){ const best=pats.reduce((a,b)=>b.pay>a.pay?b:a); best.pay*=1+cnt(S,'mirror'); best.mirrored=true; ctx.trig.push('mirror'); }
+    if(has(S,'dice')){ ctx.extra+=pats.length*cnt(S,'dice'); ctx.trig.push('dice'); }
+    if(has(S,'flame')&&pats.some(p=>p.s==='moth')&&pats.some(p=>p.s==='candle')){ const m=Math.pow(2,cnt(S,'flame')); ctx.mult*=m; ctx.notes.push('Moth to Flame x'+m); ctx.trig.push('flame'); }
+    if(has(S,'skull')&&pats.length>=3){ const m=Math.pow(1.5,cnt(S,'skull')); ctx.mult*=m; ctx.notes.push('Grinning Skull x'+m.toFixed(2)); ctx.trig.push('skull'); }
+    if(has(S,'chain')){ const k=g.flat().filter(s=>s==='crown').length; if(k){ ctx.mult*=1+.1*k*cnt(S,'chain'); ctx.trig.push('chain'); } }
     if(has(S,'tally')){ const n=S.tally||0; if(n){ ctx.extra+=n*pats.length; ctx.trig.push('tally'); } }
     if(S.fever>0){ ctx.fever=feverMult(S); ctx.mult*=ctx.fever; }
-    if(has(S,'finger')){ let any=false; for(const p of pats) if(p.cells.length>=4){ p.pay*=2; any=true; } if(any) ctx.trig.push('finger'); }
-    if(has(S,'idol')){ const k=new Set(pats.map(p=>p.s)).size; if(k){ const m=Math.pow(1.5,k); ctx.mult*=m; ctx.notes.push('Idol x'+m.toFixed(2)); ctx.trig.push('idol'); } }
-    if(has(S,'abacus')&&((S.stats.spins+1)%6===0)){ ctx.mult*=5; ctx.notes.push('Abacus x5'); ctx.trig.push('abacus'); }
-    if(S.jpSpin){ const m=has(S,'gauge')?4:2; ctx.mult*=m; ctx.notes.unshift('JACKPOT x'+m); if(has(S,'gauge')) ctx.trig.push('gauge'); }
+    if(has(S,'finger')){ let any=false; for(const p of pats) if(p.cells.length>=4){ p.pay*=1+cnt(S,'finger'); any=true; } if(any) ctx.trig.push('finger'); }
+    if(has(S,'idol')){ const k=new Set(pats.map(p=>p.s)).size; if(k){ const m=Math.pow(1+.5*cnt(S,'idol'),k); ctx.mult*=m; ctx.notes.push('Idol x'+m.toFixed(2)); ctx.trig.push('idol'); } }
+    if(has(S,'abacus')&&((S.stats.spins+1)%6===0)){ const m=1+4*cnt(S,'abacus'); ctx.mult*=m; ctx.notes.push('Abacus x'+m); ctx.trig.push('abacus'); }
+    if(S.jpSpin){ const m=2+2*cnt(S,'gauge'); ctx.mult*=m; ctx.notes.unshift('JACKPOT x'+m); if(has(S,'gauge')) ctx.trig.push('gauge'); }
   }
-  if(has(S,'mouth')){ ctx.mult*=1.5; ctx.dreadAdd+=1; ctx.trig.push('mouth'); }
+  if(has(S,'mouth')){ const n=cnt(S,'mouth'); ctx.mult*=Math.pow(1.5,n); ctx.dreadAdd+=n; ctx.trig.push('mouth'); }
   if(S.boneDice>0){ ctx.mult*=3; ctx.notes.push('Loaded Bones x3'); }
-  if(S.golden&&pats.length){ const gm=has(S,'gambler')?3:2; ctx.mult*=gm; ctx.golden=gm; ctx.notes.unshift('Golden spin x'+gm); }
+  if(S.golden&&pats.length){ const gm=2+cnt(S,'gambler'); ctx.mult*=gm; ctx.golden=gm; ctx.notes.unshift('Golden spin x'+gm); }
   const sub=pats.reduce((a,p)=>a+p.pay,0);
   let total=Math.round(sub*ctx.mult)+ctx.extra;
-  if(total===0&&has(S,'breath')){ total=2; ctx.trig.push('breath'); }
+  if(total===0&&has(S,'breath')){ total=2*cnt(S,'breath'); ctx.trig.push('breath'); }
   ctx.line=omenLine(g,S);
   if(has(S,'blackmass')){ if(omens) ctx.trig.push('blackmass'); }
   else if(ctx.line){ if(has(S,'ash')){ ctx.trig.push('ash'); ctx.line=null; } else { ctx.devour=true; total=0; } }
   else if(omens>=3){ if(has(S,'ash')) ctx.trig.push('ash'); else { ctx.voided=true; total=0; } }
-  if(has(S,'saint')&&omens){ total+=4*omens; ctx.trig.push('saint'); }
-  if(has(S,'tick')&&total>0){ ctx.ticked=Math.floor(total*.25); total-=ctx.ticked; if(ctx.ticked) ctx.trig.push('tick'); }
+  if(has(S,'saint')&&omens){ total+=4*omens*cnt(S,'saint'); ctx.trig.push('saint'); }
+  if(has(S,'tick')&&total>0){ ctx.ticked=Math.floor(total*Math.min(.75,.25*cnt(S,'tick'))); total-=ctx.ticked; if(ctx.ticked) ctx.trig.push('tick'); }
   ctx.sub=sub; ctx.total=total;
   return ctx;
 }
@@ -414,11 +418,11 @@ function applySpin(S,ctx){
   if(ctx.devour){ const t=Math.min(S.pocket,S.roundWon); S.pocket-=t; ctx.devoured=t; S.roundWon=0; }
   const won=ctx.pats.length>0&&!ctx.voided&&!ctx.devour;
   S.dry=won?0:(S.dry||0)+1; S.golden=false;
-  if(won) S.fever=Math.min(feverCap(S),S.fever+(has(S,'furnace')?2:1)); else if(!has(S,'chalice')) S.fever=has(S,'ember')?Math.max(0,S.fever-1):0;
+  if(won) S.fever=Math.min(feverCap(S),S.fever+1+cnt(S,'furnace')); else if(!has(S,'chalice')) S.fever=has(S,'ember')?Math.max(0,S.fever-1):0;
   if(S.jpSpin){ S.jp=0; S.jpSpin=false; } else S.jp=Math.min(100,(S.jp||0)+jpGain(S,ctx));
   ctx.grow=[];
-  if(won&&has(S,'leech')&&ctx.pats.some(p=>p.s==='moth')){ S.bonus.moth=(S.bonus.moth||0)+1; ctx.grow.push(['leech','Moths +1']); }
-  if(won&&has(S,'marrow')&&ctx.pats.some(p=>p.s==='bone')){ S.bonus.bone=(S.bonus.bone||0)+1; ctx.grow.push(['marrow','Bones +1']); }
+  if(won&&has(S,'leech')&&ctx.pats.some(p=>p.s==='moth')){ const n=cnt(S,'leech'); S.bonus.moth=(S.bonus.moth||0)+n; ctx.grow.push(['leech','Moths +'+n]); }
+  if(won&&has(S,'marrow')&&ctx.pats.some(p=>p.s==='bone')){ const n=cnt(S,'marrow'); S.bonus.bone=(S.bonus.bone||0)+n; ctx.grow.push(['marrow','Bones +'+n]); }
   S.dread+=ctx.dreadAdd;
   if(S.dread>=maxDread(S)){ const take=Math.floor(S.pocket*(has(S,'icon')?.2:S.perm.hunger)); S.pocket-=take; S.dread=0; ctx.hunger=take; if(has(S,'icon')) ctx.trig.push('icon'); }
   if(S.boneDice>0) S.boneDice--; if(S.blackCandle>0) S.blackCandle--; if(S.omenBane>0) S.omenBane--;
@@ -430,33 +434,33 @@ function newState(){
 }
 function beginDebt(S,rng){
   S.round=0; S.spins=0; S.paid=0; S.roundWon=0; S.rerollCost=2; S.debtMul=1;
-  let tithe=0; if(has(S,'tithe')){ tithe=3*S.relics.length; S.pocket+=tithe; }
+  let tithe=0; if(has(S,'tithe')){ tithe=3*S.relics.length*cnt(S,'tithe'); S.pocket+=tithe; }
   S.shop=genShop(S,rng); S.offers=genOfferings(S,rng);
   return {tithe};
 }
 function genShop(S,rng){
-  const pool=RELICS.filter(r=>!S.relics.includes(r.id)), out=[];
+  const pool=RELICS.filter(r=>canAddRelic(S,r.id)), out=[];
   for(let i=0;i<4&&pool.length;i++){
     const w=rarW(S), x=rng(), want=x<w[0]?1:x<w[0]+w[1]?2:3;
     let c=pool.filter(r=>r.r===want); if(!c.length) c=pool;
-    const r=c[Math.floor(rng()*c.length)]; out.push({kind:'relic',id:r.id,sold:false}); pool.splice(pool.indexOf(r),1);
+    let r=c[Math.floor(rng()*c.length)]; const own=uniqueRelics(S).filter(id=>pool.some(p=>p.id===id)); if(own.length&&rng()<.3) r=RELIC_BY[own[Math.floor(rng()*own.length)]]; out.push({kind:'relic',id:r.id,sold:false}); pool.splice(pool.indexOf(r),1);
   }
   const rp=RITES.slice();
   for(let i=0;i<2;i++){ const r=rp.splice(Math.floor(rng()*rp.length),1)[0]; out.push({kind:'rite',id:r.id,sold:false}); }
   return out;
 }
 function rarW(S,base1){ const r3=Math.min(.4,.05+.05*(S.debt-1)); const r2=Math.min(.5,.33+.02*(S.debt-1)); return [Math.max(.1,1-r2-r3),r2]; }
-function pickRelic(S,rng,w){ const pool=RELICS.filter(r=>!S.relics.includes(r.id)); if(!pool.length) return null; const x=rng(), want=x<w[0]?1:x<w[0]+w[1]?2:3; let c=pool.filter(r=>r.r===want); if(!c.length) c=pool; return c[Math.floor(rng()*c.length)].id; }
+function pickRelic(S,rng,w){ const own=uniqueRelics(S); if(own.length&&rng()<.25) return own[Math.floor(rng()*own.length)]; const pool=RELICS.filter(r=>canAddRelic(S,r.id)); if(!pool.length) return null; const x=rng(), want=x<w[0]?1:x<w[0]+w[1]?2:3; let c=pool.filter(r=>r.r===want); if(!c.length) c=pool; return c[Math.floor(rng()*c.length)].id; }
 function genOfferings(S,rng){
   const out=[], used=new Set();
-  const relic=()=>{ for(let k=0;k<6;k++){ const id=pickRelic(S,rng,rarW(S)); if(id&&!used.has(id)&&S.relics.length<MAX_RELICS){ used.add(id); return {kind:'relic',id}; } } return null; };
+  const relic=()=>{ for(let k=0;k<6;k++){ const id=pickRelic(S,rng,rarW(S)); if(id&&!used.has(id)&&canAddRelic(S,id)){ used.add(id); return {kind:'relic',id}; } } return null; };
   const barg=()=>{ for(let k=0;k<12;k++){ const b=BARGAINS[Math.floor(rng()*BARGAINS.length)]; if(!used.has(b.id)){ used.add(b.id); return {kind:'bargain',id:b.id}; } } return null; };
   const rite=()=>{ for(let k=0;k<12;k++){ const r=RITES[Math.floor(rng()*RITES.length)]; if(!used.has(r.id)){ used.add(r.id); return {kind:'rite',id:r.id}; } } return null; };
   out.push(relic()||rite()); out.push(barg()); const x=rng(); out.push((x<.4?relic():x<.75?barg():rite())||rite());
   return out.filter(Boolean);
 }
 function takeOffering(S,o){
-  if(o.kind==='relic'){ if(S.relics.length>=MAX_RELICS) return false; S.relics.push(o.id); }
+  if(o.kind==='relic'){ if(!canAddRelic(S,o.id)) return false; S.relics.push(o.id); }
   else if(o.kind==='rite'){ if(S.rites.length>=MAX_RITES) return false; S.rites.push(o.id); }
   else { BARGAIN_BY[o.id].f(S); S.bargains.push(o.id); }
   return true;
@@ -465,18 +469,18 @@ function buyBundle(S,n,rng){
   if(!canBuy(S,n)) return null;
   const cost=bundleCost(S,n); S.pocket-=cost; S.round++; S.spins=bundleSpins(S,n); S.roundWon=0;
   const interest=Math.min(interestCap(S),Math.floor(S.paid*interestRate(S))); S.paid+=interest;
-  S.fever=Math.max(S.fever,Math.min(feverCap(S),S.perm.feverStart)); S.wishUsed=false;
+  S.fever=Math.max(S.fever,Math.min(feverCap(S),S.perm.feverStart)); S.wishUsed=0;
   if(n===3) S.offers=genOfferings(S,rng);
   return {cost,interest,spins:S.spins};
 }
 function deposit(S,n){ n=Math.max(0,Math.min(n,S.pocket)); S.pocket-=n; S.paid+=n; return n; }
 function settle(S,rng){
   const o=owed(S); if(S.paid<o||S.spins>0) return null;
-  const surplus=S.paid-o, unused=ROUNDS-S.round, bonus=unused*(has(S,'hourglass')?12:0);
+  const surplus=S.paid-o, unused=ROUNDS-S.round, bonus=unused*12*cnt(S,'hourglass');
   S.pocket+=surplus+bonus;
   let tick=0; if(S.tick>0){ tick=S.tick*2; S.pocket+=tick; S.tick=0; }
-  let glut=false; if(has(S,'glutton')){ for(const k of SYM_IDS) if(k!=='omen') S.bonus[k]=(S.bonus[k]||0)+1; glut=true; }
-  if(has(S,'tally')) S.tally=(S.tally||0)+1;
+  let glut=false; if(has(S,'glutton')){ for(const k of SYM_IDS) if(k!=='omen') S.bonus[k]=(S.bonus[k]||0)+cnt(S,'glutton'); glut=true; }
+  if(has(S,'tally')) S.tally=(S.tally||0)+cnt(S,'tally');
   const paid=o; S.debt++; S.levels=levelChoices(S,rng);
   const info=beginDebt(S,rng);
   return {paid,surplus,bonus,tick,glut,tithe:info.tithe};
@@ -492,7 +496,7 @@ function useRite(S,id){
   else if(id==='bane') S.omenBane+=5;
   S.rites.splice(i,1); return true;
 }
-if(typeof module!=='undefined') module.exports={levelUp,levelChoices,lv,goldenChance,findPatterns,SYM,SYM_IDS,RELICS,RITES,BARGAINS,newState,beginDebt,rollGrid,scoreSpin,applySpin,buyBundle,deposit,settle,owed,bundleCost,relicPrice,ritePrice,takeOffering,has,stuck,ROUNDS,FINAL_DEBT};
+if(typeof module!=='undefined') module.exports={cnt,canAddRelic,uniqueRelics,levelUp,levelChoices,lv,goldenChance,findPatterns,SYM,SYM_IDS,RELICS,RITES,BARGAINS,newState,beginDebt,rollGrid,scoreSpin,applySpin,buyBundle,deposit,settle,owed,bundleCost,relicPrice,ritePrice,takeOffering,has,stuck,ROUNDS,FINAL_DEBT};
 </script>
 
 <!-- ===================== PRESENTATION ===================== -->
@@ -1634,11 +1638,12 @@ add(new THREE.BoxGeometry(1.5,.95,.04),MAT.ebony,0,0,0,shelf);
 for(const y of [-.45,-.02]) add(new THREE.BoxGeometry(1.55,.04,.2),MAT.wood,0,y,.1,shelf);
 add(new THREE.BoxGeometry(1.6,.05,.08),MAT.brass,0,.48,.03,shelf);
 const plaqueTexCache={};
-function plaqueTex(kind,id){ const k=kind+id; if(plaqueTexCache[k]) return plaqueTexCache[k]; const [c,g]=mkCanvas(256,256);
+function plaqueTex(kind,id,n=1){ const k=kind+id+'x'+n; if(plaqueTexCache[k]) return plaqueTexCache[k]; const [c,g]=mkCanvas(256,256);
   const def=kind==='relic'?RELIC_BY[id]:RITE_BY[id]; const col=kind==='relic'?({1:'#8a7a5a',2:'#5f8a50',3:'#a8302a'})[def.r]:'#4a6a8a';
   g.fillStyle=rg(g,128,128,10,180,[[0,'#3a2a1e'],[1,'#120a06']]); g.fillRect(0,0,256,256);
   g.strokeStyle=col; g.lineWidth=12; rrect(g,8,8,240,240,18); g.stroke(); g.strokeStyle='rgba(0,0,0,.6)'; g.lineWidth=3; rrect(g,20,20,216,216,12); g.stroke();
   g.drawImage(iconCanvas(def.icon,200),28,24);
+  if(n>1){ g.fillStyle='rgba(20,8,4,.92)'; circ(g,206,206,40); g.fill(); g.strokeStyle='#e8c060'; g.lineWidth=5; circ(g,206,206,40); g.stroke(); g.fillStyle='#ffe08a'; g.font='bold 44px Georgia'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('×'+n,206,208); }
   return plaqueTexCache[k]=canvasTex(c); }
 function makePlaque(parent,w=.3){ const mat=new THREE.MeshStandardMaterial({roughness:.5,emissive:0xffffff,emissiveIntensity:.25}); const m=add(new THREE.BoxGeometry(w,w,.035),[MAT.wood,MAT.wood,MAT.wood,MAT.wood,mat,MAT.wood],0,0,0,parent); m.userData.mat=mat; m.visible=false; return m; }
 const relicPlaques=[]; [[-.54,.2],[-.18,.2],[.18,.2],[.54,.2],[-.36,-.23],[0,-.23],[.36,-.23]].forEach(([x,y])=>{ const p=makePlaque(shelf); p.position.set(x,y,.12); p.rotation.x=-.12; p.userData.home=p.position.clone(); relicPlaques.push(p); });
@@ -1705,10 +1710,10 @@ function cardCanvas(o){ const W=512,H=720; const [c,g]=mkCanvas(W,H);
   if(o.foot){ g.fillStyle=band; g.fillRect(40,H-104,W-80,62); g.fillStyle='#f6ead0'; g.font=`38px ${FELLSC}`; g.fillText(o.foot,W/2,H-60); }
   if(o.dim){ g.fillStyle='rgba(10,5,2,.55)'; rrect(g,0,0,W,H,30); g.fill(); g.fillStyle='#f0e0c0'; g.font=`44px ${FELLSC}`; g.fillText(o.dim,W/2,H/2); }
   return c; }
-function offerDef(o){ if(o.kind==='relic'){ const r=RELIC_BY[o.id]; return {icon:r.icon,title:r.n,rar:RARITY[r.r]+' relic',body:r.d,band:({1:'#6e6250',2:'#3f6a3a',3:'#8a1a12'})[r.r]}; }
+function offerDef(o){ if(o.kind==='relic'){ const r=RELIC_BY[o.id]; const n=S?cnt(S,o.id):0; return {icon:r.icon,title:r.n,rar:RARITY[r.r]+' relic'+(n?` · you own ×${n}`:' · stacks'),body:r.d+(n?' Another copy stacks the effect.':''),band:({1:'#6e6250',2:'#3f6a3a',3:'#8a1a12'})[r.r]}; }
   if(o.kind==='rite'){ const r=RITE_BY[o.id]; return {icon:r.icon,title:r.n,rar:'Rite · single use',body:r.d,band:'#2a4a6a'}; }
   const b=BARGAIN_BY[o.id]; return {icon:b.icon,title:b.n,rar:'Bargain',good:b.good,bad:b.bad,band:'#4a2a6a'}; }
-function cardTex(o,extra={}){ const d=Object.assign(offerDef(o),extra); const k=JSON.stringify([o.kind,o.id,extra]); if(cardCache[k]) return cardCache[k]; return cardCache[k]=clampTex(cardCanvas(d)); }
+function cardTex(o,extra={}){ const d=Object.assign(offerDef(o),extra); const k=JSON.stringify([o.kind,o.id,extra,o.kind==='relic'&&S?cnt(S,o.id):0]); if(cardCache[k]) return cardCache[k]; return cardCache[k]=clampTex(cardCanvas(d)); }
 const offerCards=[]; for(let i=0;i<3;i++){ const mat=new THREE.MeshStandardMaterial({roughness:.7,emissive:0xffffff,emissiveIntensity:.45,side:THREE.DoubleSide}); const m=add(new THREE.PlaneGeometry(.62,.87),mat,0,-2,0,scene,false); m.visible=false; m.userData.mat=mat; offerCards.push(m); }
 let offerAnim=0;
 
@@ -1759,7 +1764,8 @@ function refresh(){
   // tubes
   dreadTube.target=Math.min(1,S.dread/maxDread(S)); feverTube.target=Math.min(1,S.fever/Math.max(1,feverCap(S)));
   // relics & rites
-  relicPlaques.forEach((p,i)=>{ const id=S.relics[i]; p.visible=!!id; if(id){ p.userData.mat.map=plaqueTex('relic',id); p.userData.mat.emissiveMap=p.userData.mat.map; p.userData.mat.needsUpdate=true; p.userData.id=id; } });
+  const uniq=uniqueRelics(S);
+  relicPlaques.forEach((p,i)=>{ const id=uniq[i]; p.visible=!!id; if(id){ p.userData.mat.map=plaqueTex('relic',id,cnt(S,id)); p.userData.mat.emissiveMap=p.userData.mat.map; p.userData.mat.needsUpdate=true; p.userData.id=id; } });
   ritePlaques.forEach((p,i)=>{ const id=S.rites[i]; p.visible=!!id; if(id){ p.userData.mat.map=plaqueTex('rite',id); p.userData.mat.emissiveMap=p.userData.mat.map; p.userData.mat.needsUpdate=true; p.userData.id=id; } });
   updateTray();
 }
@@ -1788,7 +1794,7 @@ ix(niche,{when:()=>mode==='shop',tip:()=>`<h4>Knock</h4>New wares: ${rerollCost(
 ix(dreadTube.liq.parent.children[3],{when:()=>!!S,tip:()=>`<h4>Dread</h4>${S.dread} / ${maxDread(S)}. When full, the Hunger eats ${Math.round((has(S,'icon')?.2:S.perm.hunger)*100)}% of your purse.`});
 ix(feverTube.liq.parent.children[3],{when:()=>!!S,tip:()=>`<h4>Fever</h4>${S.fever?'x'+feverMult(S).toFixed(2):'none'}. Every winning spin in a row adds +0.25x (max x${(1+.25*feverCap(S)).toFixed(2)}).`});
 ix(board.children[4],{when:()=>!!S,tip:()=>`<h4>The debt</h4>Owed ${owed(S)}, fed ${S.paid}. Tolls used ${S.round}/${ROUNDS}.`});
-relicPlaques.forEach(p=>ix(p,{when:()=>!!S&&(mode==='play'||mode==='shop')&&!busy,tip:()=>{ const r=RELIC_BY[p.userData.id]; return `<h4>${r.n}</h4><span class="dimt">${RARITY[r.r]} relic</span><br>${r.d}<br><i class="dimt">Click to inspect.</i>`; },click:()=>inspect('relic',p.userData.id)}));
+relicPlaques.forEach(p=>ix(p,{when:()=>!!S&&(mode==='play'||mode==='shop')&&!busy,tip:()=>{ const r=RELIC_BY[p.userData.id]; const n=cnt(S,r.id); return `<h4>${r.n}${n>1?' ×'+n:''}</h4><span class="dimt">${RARITY[r.r]} relic${n>1?' · effect stacked '+n+' times':''}</span><br>${r.d}<br><i class="dimt">Click to inspect.</i>`; },click:()=>inspect('relic',p.userData.id)}));
 ritePlaques.forEach(p=>ix(p,{when:()=>!!S&&(mode==='play'||mode==='shop')&&!busy,tip:()=>{ const r=RITE_BY[p.userData.id]; return `<h4>${r.n}</h4>${r.d}<br><i class="dimt">Click to inspect.</i>`; },click:()=>inspect('rite',p.userData.id)}));
 shopCards.forEach((c,i)=>ix(c,{when:()=>mode==='shop',tip:()=>{ const o=S.shop[i]; const d=offerDef(o); return `<h4>${d.title}</h4>${d.body}`; },click:()=>buyShop(i),hover:true}));
 offerCards.forEach((c,i)=>ix(c,{when:()=>mode==='offers'||mode==='level',tip:()=>{ if(mode==='level'){ const s=S.levels[i]; return `<h4>${SYM[s].n}: level ${lv(S,s)} → ${lv(S,s)+(has(S,'oil')?2:1)}</h4>Worth ${symValue(S,s)} → ${symValue(S,s)*(has(S,'oil')?4:2)}`; } const o=S.offers[i]; const d=offerDef(o); return `<h4>${d.title}</h4>${d.good?('+ '+d.good+'<br>− '+d.bad):d.body}`; },click:()=>mode==='level'?takeLevel(i):takeOffer(i),hover:true}));
@@ -1800,7 +1806,7 @@ const inspectBtns=[0,1].map(()=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry
 let inspectSel=null, preInspect='play';
 function inspect(kind,id){ if(!S||busy||!id) return; preInspect=mode; mode='inspect'; inspectSel={kind,id}; AU.click(); AU.whisper();
   inspectCard.material.map=cardTex({kind,id},{}); inspectCard.material.needsUpdate=true; inspectCard.visible=true;
-  const A=kind==='relic'?['SELL · '+sellPrice(S,RELIC_BY[id])+' coins','#7a1208']:[preInspect==='play'?'PERFORM THE RITE':'PERFORM LATER','#1a3a6a'];
+  const A=kind==='relic'?[(cnt(S,id)>1?'SELL ONE · ':'SELL · ')+sellPrice(S,RELIC_BY[id])+' coins','#7a1208']:[preInspect==='play'?'PERFORM THE RITE':'PERFORM LATER','#1a3a6a'];
   inspectBtns[0].material.map=choiceCanvas(A[0],A[1]); inspectBtns[1].material.map=choiceCanvas('KEEP','#3a2a10'); inspectBtns.forEach(b=>{ b.material.needsUpdate=true; b.visible=true; });
   inspectBtns[0].userData.disabled=kind==='rite'&&preInspect!=='play';
   $('tooltip').classList.add('hidden'); }
@@ -1833,7 +1839,7 @@ function startDebtIntro(){ AU.toll(); setView('center'); banner(`DEBT ${roman(S.
   setTimeout(()=>{ if(S.offers.length) showOffers(()=>enterShop()); else enterShop(); },1700); }
 function showOffers(after){
   mode='offers'; updateTouchBar(); offerAfter=after||null; setView('offers'); offerAnim=0; AU.whisper();
-  S.offers.forEach((o,i)=>{ const c=offerCards[i]; const full=(o.kind==='relic'&&S.relics.length>=MAX_RELICS)||(o.kind==='rite'&&S.rites.length>=MAX_RITES);
+  S.offers.forEach((o,i)=>{ const c=offerCards[i]; const full=(o.kind==='relic'&&!canAddRelic(S,o.id))||(o.kind==='rite'&&S.rites.length>=MAX_RITES);
     c.userData.mat.map=cardTex(o,full?{dim:'NO ROOM'}:{foot:'TAKE IT'}); c.userData.mat.emissiveMap=c.userData.mat.map; c.userData.mat.needsUpdate=true; c.userData.full=full; c.visible=true; c.userData.i=i; });
   for(let i=S.offers.length;i<3;i++) offerCards[i].visible=false;
   bar('<button id="refuseBtn">Refuse them all <span class="gold">(+5 coins)</span></button>'); $('refuseBtn').onclick=()=>finishOffers(true);
@@ -1855,15 +1861,15 @@ function finishOffers(refused){ if(refused){ S.pocket+=5; AU.coin(); } S.offers=
 function enterShop(){ if(!S||busy||(mode!=='play')) return; if(S.spins>0){ say('Not while the reels still owe you spins.','',2000); return; } mode='shop'; updateTouchBar(); setView('hatch'); doorTarget=1; AU.hatch(); renderShop(); bar('<button id="leaveBtn">Close the hatch <kbd>Esc</kbd></button>'); $('leaveBtn').onclick=exitShop; say('Something with too many fingers lays its wares on the ledge.','',3000); refresh(); }
 function exitShop(){ if(mode!=='shop') return; mode='play'; doorTarget=0; setView('center'); bar(null); $('tooltip').classList.add('hidden'); refresh(); saveRun(); afterSpinCheck(); }
 function renderShop(){ S.shop.forEach((o,i)=>{ const c=shopCards[i]; if(!c) return; const def=o.kind==='relic'?RELIC_BY[o.id]:RITE_BY[o.id]; const price=o.kind==='relic'?relicPrice(S,def):ritePrice(S,def);
-    const full=o.kind==='relic'?S.relics.length>=MAX_RELICS:S.rites.length>=MAX_RITES;
+    const full=o.kind==='relic'?!canAddRelic(S,o.id):S.rites.length>=MAX_RITES;
     const extra=o.sold?{dim:'SOLD'}:full?{dim:'NO ROOM',foot:price+' coins'}:{foot:price+' coins',dim:S.pocket<price?'TOO POOR':undefined};
     if(extra.dim===undefined) delete extra.dim;
     c.userData.mat.map=cardTex(o,extra); c.userData.mat.emissiveMap=c.userData.mat.map; c.userData.mat.needsUpdate=true; c.visible=true; });
   for(let i=S.shop.length;i<shopCards.length;i++) shopCards[i].visible=false; }
 function buyShop(i){ const o=S.shop[i]; if(!o||o.sold) return; const isR=o.kind==='relic', def=isR?RELIC_BY[o.id]:RITE_BY[o.id], price=isR?relicPrice(S,def):ritePrice(S,def);
   if(S.pocket<price){ say('The fingers withdraw. You cannot afford it.','bad',1800); AU.click(); return; }
-  if(isR&&S.relics.length>=MAX_RELICS||!isR&&S.rites.length>=MAX_RITES){ say('No room. Sell something first.','bad',1800); return; }
-  S.pocket-=price; o.sold=true; if(isR) S.relics.push(o.id); else S.rites.push(o.id); AU.buy(); say(def.n+(isR?' joins your shelf.':' sits on the stool.'),'good',2000); renderShop(); refresh(); saveRun(); }
+  if(isR&&!canAddRelic(S,o.id)||!isR&&S.rites.length>=MAX_RITES){ say('No room. Sell something first.','bad',1800); return; }
+  S.pocket-=price; o.sold=true; if(isR) S.relics.push(o.id); else S.rites.push(o.id); AU.buy(); say(def.n+(isR?(cnt(S,o.id)>1?` stacks: you now own ×${cnt(S,o.id)}.`:' joins your shelf.'):' sits on the stool.'),'good',2200); if(isR&&cnt(S,o.id)>1) setTimeout(()=>pulseRelic(o.id,'×'+cnt(S,o.id)),300); renderShop(); refresh(); saveRun(); }
 function reroll(){ const c=rerollCost(S); if(S.pocket<c){ say('You cannot pay for new wares.','bad',1600); return; } S.pocket-=c; S.rerollCost+=2; S.shop=genShop(S,rnd); AU.hatch(); AU.noise(.08,.4,700,'bandpass'); AU.noise(.08,.4,700,'bandpass',.18); shake=.05; renderShop(); refresh(); saveRun(); }
 function sellRelic(id){ if(!S||busy||!id) return; const r=RELIC_BY[id]; S.pocket+=sellPrice(S,r); say(`${r.n} crumbles to dust. +${sellPrice(S,r)} coins.`,'',2400); AU.hunger(); flash('#2a0a04',.3); S.relics.splice(S.relics.indexOf(id),1); $('tooltip').classList.add('hidden'); AU.coin(); if(mode==='shop') renderShop(); refresh(); saveRun(); afterSpinCheck(); }
 function doRite(id){ if(!canPlay()||!id) return; const r=RITE_BY[id]; if(!useRite(S,id)) return; AU.whisper(); AU.tone(220,1.2,'sine',.08,440); flash(id==='holy'?'#204060':'#2a0a30',.35); say(r.n+': '+r.d,'good',2600); refresh(); saveRun(); afterSpinCheck(); }
@@ -2021,7 +2027,7 @@ async function die(){
   AU.boom(); flash('#a00000',.9); shake=1;
   $('blackout').style.transition='opacity .15s'; $('blackout').style.opacity=1; await sleep(1400);
   $('deathText').innerHTML=`You settled <b>${S.debt-1}</b> debt${S.debt-1===1?'':'s'}. The Maw wanted <b>${owed(S)}</b>. It had <b>${S.paid}</b>, your purse <b>${S.pocket}</b>.`;
-  $('deathStats').innerHTML=`Spins: ${S.stats.spins} · Coins won: ${S.stats.earned} · Best spin: ${S.stats.best}<br>Relics: ${S.relics.map(id=>RELIC_BY[id].n).join(', ')||'none'}`;
+  $('deathStats').innerHTML=`Spins: ${S.stats.spins} · Coins won: ${S.stats.earned} · Best spin: ${S.stats.best}<br>Relics: ${uniqueRelics(S).map(id=>RELIC_BY[id].n+(cnt(S,id)>1?' ×'+cnt(S,id):'')).join(', ')||'none'}`;
   showOnly('death'); $('blackout').style.transition='opacity 1.2s';
 }
 function resetScene(){ crusherSpeed=.35; crusherY=crusherTarget=ceilingY(S?S.debt:1); crusher.position.y=crusherY; $('blackout').style.opacity=0; busy=false; doorTarget=0; offerCards.forEach(c=>c.visible=false); shopCards.forEach(c=>c.visible=false); bar(null); }
@@ -2034,7 +2040,7 @@ function buildHelp(){
   const hp=$('helpPats'); hp.innerHTML=''; Object.entries(PAT).forEach(([k,p])=>{ const on=new Set(p.shape==='all'?Array.from({length:15},(_,i)=>`${Math.floor(i/5)},${i%5}`):p.shape.map(([r,c])=>r+','+c)); let mini='<div class="mini">'; for(let r=0;r<3;r++) for(let c=0;c<5;c++) mini+=`<i class="${on.has(r+','+c)?'on':''}"></i>`; mini+='</div>'; const d=document.createElement('div'); d.className='pat'; d.innerHTML=`<div class="sc">${p.n}</div>${mini}<div>×${S?patMult(S,k):p.m}</div>`; hp.appendChild(d); }); }
 function openHelp(){ buildHelp(); const box=$('helpOwn'); if(box){ if(!S){ box.innerHTML=''; } else {
     let h='<div class="sc dimt">Your relics</div><div style="display:grid;gap:6px;margin:6px 0 14px">';
-    h+=S.relics.length?S.relics.map(id=>{ const r=RELIC_BY[id]; return `<div class="helpSym"><img src="${iconURL(r.icon)}"><div><span class="sc">${r.n}</span> <span class="dimt" style="font-size:12px">${RARITY[r.r]}</span><div style="font-size:14px">${r.d}</div></div></div>`; }).join(''):'<span class="dimt">None yet.</span>';
+    h+=S.relics.length?uniqueRelics(S).map(id=>{ const r=RELIC_BY[id]; return `<div class="helpSym"><img src="${iconURL(r.icon)}"><div><span class="sc">${r.n}${cnt(S,id)>1?' <b class="gold">×'+cnt(S,id)+'</b>':''}</span> <span class="dimt" style="font-size:12px">${RARITY[r.r]}</span><div style="font-size:14px">${r.d}</div></div></div>`; }).join(''):'<span class="dimt">None yet.</span>';
     h+='</div>'; if(S.rites.length) h+='<div class="sc dimt">Your rites</div><div style="display:grid;gap:6px;margin:6px 0 14px">'+S.rites.map(id=>{ const r=RITE_BY[id]; return `<div class="helpSym"><img src="${iconURL(r.icon)}"><div><span class="sc">${r.n}</span><div style="font-size:14px">${r.d}</div></div></div>`; }).join('')+'</div>';
     if(S.bargains.length) h+='<div class="sc dimt">Bargains you struck</div><ul style="margin:6px 0 14px">'+S.bargains.map(id=>{ const b=BARGAIN_BY[id]; return `<li><b>${b.n}</b>: <span style="color:#9fd08a">${b.good}</span> <span style="color:#e0705a">${b.bad}</span></li>`; }).join('')+'</ul>';
     box.innerHTML=h; } } $('help').classList.remove('hidden'); }
