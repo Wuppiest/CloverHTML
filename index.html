@@ -2410,7 +2410,7 @@ function showOffers(after){
   say(S.offers[0]&&S.offers[0].kind==='tune'?'The machine lets you adjust it. Choose one change.':'The dark leaves three offerings at your feet. Take one.','',3500); saveRun(); refresh(); }
 let offerAfter=null;
 function levelCardTex(s){ const cur=lv(S,s), add=has(S,'oil')?2:1, col=LV_COL[Math.min(6,cur+add)]||'#c8d0d8';
-  return clampTex(cardCanvas({icon:s,title:SYM[s].n,rar:`LEVEL ${roman(cur)} → ${roman(cur+add)}`,body:`Worth ${symValue(S,s)} → ${symValue(S,s)*Math.pow(2,add)}. Every ${SYM[s].n} on the reels will glow with it.`,band:col==='#c8d0d8'?'#6a7480':col,foot:'SHARPEN'})); }
+  return clampTex(cardCanvas({icon:s,title:SYM[s].n,rar:(LANG==='de'?'STUFE ':'LEVEL ')+`${roman(cur)} → ${roman(cur+add)}`,body:LANG==='de'?`Wert ${symValue(S,s)} → ${symValue(S,s)*Math.pow(2,add)}. Jede(s) ${SYM[s].n} auf den Walzen leuchtet damit.`:`Worth ${symValue(S,s)} → ${symValue(S,s)*Math.pow(2,add)}. Every ${SYM[s].n} on the reels will glow with it.`,band:col==='#c8d0d8'?'#6a7480':col,foot:'SHARPEN'})); }
 function showLevels(after){ mode='level'; updateTouchBar(); offerAfter=after||null; setView('offers'); offerAnim=0; AU.toll();
   S.levels.forEach((s,i)=>{ const c=offerCards[i]; c.userData.mat.map=levelCardTex(s); c.userData.mat.emissiveMap=c.userData.mat.map; c.userData.mat.needsUpdate=true; c.userData.full=false; c.visible=true; });
   for(let i=S.levels.length;i<3;i++) offerCards[i].visible=false; bar(null);
@@ -2781,7 +2781,17 @@ const setSoundLabel=()=>$('btnSound').textContent=(LANG==='de'?'Ton: ':'Sound: '
 $('btnSound').onclick=()=>{ AU.init(); AU.toggle(); setSoundLabel(); };
 const setTurboLabel=()=>$('btnTurbo').textContent='Turbo: '+(turbo?(LANG==='de'?'an':'on'):(LANG==='de'?'aus':'off'));
 function setLang(l){ LANG=l; try{ localStorage.setItem('hollowtoll_lang',l); }catch(e){} applyLang(); }
-function applyLang(){ applyLangData(); applyLangDOM(); setTurboLabel(); setSoundLabel(); payKey=''; btn7.key=btn3.key=''; for(const k in cardCache) delete cardCache[k]; redrawFontTextures(); hatchDoor.material[4].map.image=hatchCanvas(); hatchDoor.material[4].map.needsUpdate=true; refreshTitle(); if(!$('help').classList.contains('hidden')) openHelp(); if(mode==='offers') renderOfferBar(); }
+function setCardMap(c,t){ c.userData.mat.map=t; c.userData.mat.emissiveMap=t; c.userData.mat.needsUpdate=true; }
+function refreshCards(){ if(!S) return;
+  if(mode==='offers') S.offers.forEach((o,i)=>{ const c=offerCards[i]; if(c&&c.visible) setCardMap(c,cardTex(o,c.userData.full?{dim:'NO ROOM'}:{foot:'TAKE IT'})); });
+  if(mode==='level') S.levels.forEach((s0,i)=>{ if(offerCards[i].visible) setCardMap(offerCards[i],levelCardTex(s0)); });
+  if(mode==='deal'&&dealId){ setCardMap(offerCards[0],dealCardTex(dealId)); setCardMap(offerCards[1],refuseCardTex()); }
+  if(mode==='shop'){ renderShop(); bar(`<button id="leaveBtn">${LANG==='de'?'Luke schließen':'Close the hatch'} <kbd>Esc</kbd></button>`); $('leaveBtn').onclick=exitShop; }
+  if(mode==='inspect'&&inspectSel){ const {kind,id}=inspectSel; inspectCard.material.map=cardTex({kind,id},{}); inspectCard.material.needsUpdate=true;
+    const A=kind==='relic'?[(cnt(S,id)>1?'SELL ONE · ':'SELL · ')+sellPrice(S,RELIC_BY[id])+' coins','#7a1208']:[preInspect==='play'?'PERFORM THE RITE':'PERFORM LATER','#1a3a6a'];
+    inspectBtns[0].material.map=choiceCanvas(A[0],A[1]); inspectBtns[1].material.map=choiceCanvas('KEEP','#3a2a10'); inspectBtns.forEach(b=>b.material.needsUpdate=true); }
+  if(!$('trophies').classList.contains('hidden')) openTrophies(); }
+function applyLang(){ applyLangData(); applyLangDOM(); setTurboLabel(); setSoundLabel(); payKey=''; btn7.key=btn3.key=''; for(const k in cardCache) delete cardCache[k]; redrawFontTextures(); hatchDoor.material[4].map.image=hatchCanvas(); hatchDoor.material[4].map.needsUpdate=true; refreshTitle(); if(!$('help').classList.contains('hidden')) openHelp(); if(mode==='offers') renderOfferBar(); refreshCards(); }
 $('btnLang').onclick=()=>setLang(LANG==='de'?'en':'de'); $('titleLang').onclick=()=>setLang(LANG==='de'?'en':'de');
 $('btnTurbo').onclick=()=>{ turbo=!turbo; lsSet('hollowtoll_turbo',turbo); setTurboLabel(); }; setTurboLabel();
 $('btnMenu').onclick=toTitle;
