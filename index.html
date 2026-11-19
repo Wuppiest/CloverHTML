@@ -37,6 +37,30 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
 #hudL .row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin:2px 0;font-size:17px}
 #hudL .row b{font-size:22px;font-weight:normal}
 .lbl{color:var(--dim);font-size:14px}
+#qbar{height:8px;background:#1a140c;border:1px solid #4a3a1a;border-radius:2px;margin:2px 0 6px;overflow:hidden}
+#qFill{height:100%;width:0;background:linear-gradient(90deg,#6a4a10,#e6c068);transition:width .35s}
+#qbar.full{border-color:#e6c068;box-shadow:0 0 10px rgba(230,192,104,.6)}
+#qbar.full #qFill{background:linear-gradient(90deg,#c08a20,#fff0a0)}
+#hCoins.bump{animation:bump .25s}
+@keyframes bump{50%{transform:scale(1.25);color:#fff3b0}}
+#feverRow b{color:#ff8a3a;text-shadow:0 0 8px rgba(255,100,20,.7)}
+#feverPips{display:flex;gap:3px;margin-top:3px}
+#feverPips i{flex:1;height:5px;background:#24140c;border-radius:1px}
+#feverPips i.on{background:linear-gradient(#ffd070,#e0461a);box-shadow:0 0 6px #e0461a}
+#feverPips i.cap{display:none}
+#banner{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:22;pointer-events:none;text-align:center;font-family:'IM Fell English SC',Georgia,serif;opacity:0;white-space:nowrap}
+#banner.show{animation:banner 2.2s ease-out forwards}
+#banner .t{font-size:clamp(30px,5.6vw,70px);color:#ffe08a;text-shadow:0 0 30px #ff7a00,0 0 60px #a02000,0 4px 0 #3a1200;letter-spacing:.06em}
+#banner .s{font-size:clamp(20px,3vw,30px);color:#f3e2b8;text-shadow:0 2px 6px #000}
+#banner.bad .t{color:#ff4a3a;text-shadow:0 0 30px #a00,0 4px 0 #200}
+@keyframes banner{0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(-4deg)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.15) rotate(1deg)}22%{transform:translate(-50%,-50%) scale(1) rotate(0)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-60%) scale(1.04)}}
+.relTag{position:fixed;transform:translate(-50%,-100%);z-index:21;pointer-events:none;font-family:'IM Fell English SC',Georgia,serif;font-size:14px;color:#ffe9b0;background:rgba(40,20,8,.9);border:1px solid #c79d4b;border-radius:3px;padding:1px 6px;white-space:nowrap;animation:tagUp 1.4s ease-out forwards}
+@keyframes tagUp{0%{opacity:0;margin-top:6px}15%{opacity:1;margin-top:0}75%{opacity:1}100%{opacity:0;margin-top:-26px}}
+.offer.bargain{border-color:#6a3a8a;box-shadow:inset 0 0 18px rgba(106,58,138,.35)}
+.offer .good{color:#9fd08a;font-size:15px}.offer .bad{color:#e0705a;font-size:15px}
+#offerGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:14px}
+#offerGrid .offer{cursor:pointer;transition:transform .15s,box-shadow .15s}
+#offerGrid .offer:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.7),0 0 18px rgba(199,157,75,.35)}
 #dread{height:10px;background:#1b0d0b;border:1px solid #4a1a16;border-radius:2px;margin-top:4px;overflow:hidden}
 #dreadFill{height:100%;width:0;background:linear-gradient(90deg,#4e0b0b,#c22a1d);transition:width .4s}
 #hudR{position:absolute;right:16px;top:16px;font-size:14px;min-width:170px}
@@ -135,8 +159,11 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
   <div id="hudL" class="panel">
     <div class="row"><span class="lbl sc">Night</span><span><b id="hNight">1</b><span class="dimt" id="hNightMax"> / 10</span></span></div>
     <div class="row"><span class="lbl sc">The Maw demands</span><b id="hQuota" class="redt">0</b></div>
+    <div id="qbar"><div id="qFill"></div></div>
     <div class="row"><span class="lbl sc">Coins</span><b id="hCoins" class="gold">0</b></div>
     <div class="row"><span class="lbl sc">Cranks left</span><b id="hCranks">0</b></div>
+    <div class="row" id="feverRow"><span class="lbl sc">Fever</span><b id="hFever">x1.00</b></div>
+    <div id="feverPips"></div>
     <div class="row" style="margin-top:6px"><span class="lbl sc">Dread</span><span class="lbl" id="hDread">0 / 10</span></div>
     <div id="dread"><div id="dreadFill"></div></div>
   </div>
@@ -146,7 +173,7 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
     <div><span class="lbl">Interest</span><span id="hInt">10%</span></div>
     <div><span class="lbl">Total won</span><span id="hEarned">0</span></div>
   </div>
-  <div id="topBtns"><button id="btnHelp">Rules <kbd>H</kbd></button><button id="btnSound">Sound: on</button><button id="btnMenu">Menu</button></div>
+  <div id="topBtns"><button id="btnHelp">Rules <kbd>H</kbd></button><button id="btnTurbo">Turbo: off <kbd>T</kbd></button><button id="btnSound">Sound: on</button><button id="btnMenu">Menu</button></div>
   <div id="msg"></div>
   <div id="riteBar"></div>
   <div id="relicBar"></div>
@@ -211,6 +238,16 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
   </div>
 </div>
 
+<div id="offers" class="modal hidden">
+  <div class="modalBox" style="width:900px">
+    <h3>Offerings from the Dark</h3>
+    <p class="flav">Before the bell, something leaves three things at your feet. You may take one.</p>
+    <div id="offerGrid"></div>
+    <div style="text-align:center"><button id="offerSkip">Refuse them all <span class="gold">(+5 coins)</span></button></div>
+  </div>
+</div>
+<div id="banner"><div class="t"></div><div class="s"></div></div>
+
 <div id="help" class="modal hidden">
   <div class="modalBox" style="width:880px">
     <button class="close" id="helpClose">Close <kbd>Esc</kbd></button>
@@ -223,13 +260,16 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
       <li>If you run out of cranks and cannot pay, the ceiling comes down. It lowers a little every night either way.</li>
       <li><b>Omens</b> fill your <b>Dread</b>. When Dread is full, the Hunger eats half your coins. Three or more Omens in one spin void that spin's winnings.</li>
       <li><b>Echo</b> makes symbols copy their neighbours, so patterns become more likely.</li>
+      <li><b>Fever:</b> every winning spin in a row adds +0.25× to your payouts (up to ×2.5). A spin without a pattern puts it out.</li>
+      <li>Each dusk you choose one of three <b>Offerings</b>: a free relic, a rite, or a <b>bargain</b> (a strong blessing with a curse attached).</li>
+      <li>Relics marked <i>Grows</i> get stronger every time they trigger. Build around them.</li>
       <li>The <b>Peddler</b> sells <b>relics</b> (permanent, up to 7) and <b>rites</b> (single use, up to 2). Survive ten nights.</li>
     </ul>
     <div class="lbl sc">Symbols</div>
     <div class="helpGrid" id="helpSyms"></div>
     <div class="lbl sc">Patterns</div>
     <div class="patGrid" id="helpPats"></div>
-    <p class="dimt">Keys: Space pull · C buy crank · E peddler · F feed · H rules · M sound</p>
+    <p class="dimt">Keys: Space pull · C buy crank · E peddler · F feed · T turbo · H rules · M sound</p>
   </div>
 </div>
 
@@ -263,7 +303,7 @@ const PAT = {
   swarm:{n:'Swarm (9+ of one)', m:5, g:'s', shape:[[0,0],[0,2],[0,4],[1,1],[1,3],[2,0],[2,2],[2,4],[1,2]]},
   abyss:{n:'Abyss (all 15)',   m:15,g:'s', shape:'all'},
 };
-const QUOTAS = [15,35,60,90,130,180,240,320,420,550];
+const QUOTAS = [15,35,60,95,140,200,280,380,510,680];
 const FINAL_NIGHT = 10;
 const MAX_RELICS = 7, MAX_RITES = 2;
 function quotaFor(n){ return n<=QUOTAS.length ? QUOTAS[n-1] : Math.round(QUOTAS[QUOTAS.length-1]*Math.pow(1.45,n-QUOTAS.length)); }
@@ -312,6 +352,13 @@ const RELICS = [
   {id:'hourglass',n:'Sandless Hourglass',d:'Unused cranks are worth 5 coins when you feed the Maw.',r:1,icon:'hourglass'},
   {id:'widow',n:"Widow's Veil",d:'Omens appear half as often.',r:2,icon:'widow'},
   {id:'tongue',n:'Silver Tongue',d:'At dusk, the Maw demands 10% less.',r:3,icon:'tongue'},
+  {id:'leech',n:'Moth Leech',d:'Grows: whenever Moths form a pattern, Moths gain +1 value forever.',r:1,icon:'leech',grows:1},
+  {id:'marrow',n:'Marrow Spoon',d:'Grows: whenever Bones form a pattern, Bones gain +1 value forever.',r:1,icon:'spoon',grows:1},
+  {id:'tally',n:'Tally Stone',d:'Grows: every pattern pays +1 for each night you have kept this stone.',r:2,icon:'stone',grows:1},
+  {id:'glutton',n:"Glutton's Bowl",d:'Grows: each time you feed the Maw, every symbol gains +1 value forever.',r:2,icon:'bowl',grows:1},
+  {id:'tick',n:'Swollen Tick',d:'Drinks 25% of every win. When you feed the Maw it bursts and pays it back double.',r:2,icon:'tick'},
+  {id:'ember',n:'Ember Heart',d:'A losing spin only cools your Fever by one step instead of putting it out.',r:2,icon:'ember'},
+  {id:'furnace',n:'Bone Furnace',d:'Fever grows twice as fast and can reach x3.',r:3,icon:'furnace'},
 ];
 const RELIC_BY = Object.fromEntries(RELICS.map(r=>[r.id,r]));
 const RITES = [
@@ -323,14 +370,41 @@ const RITES = [
   {id:'bane',n:'Omen Bane',d:'Next 5 spins: no Omens appear.',icon:'ash',p:6},
 ];
 const RITE_BY = Object.fromEntries(RITES.map(r=>[r.id,r]));
+const BARGAINS = [
+  {id:'chains',n:'Heavier Chains',good:'+2 cranks every night.',bad:'The Maw demands 12% more, forever.',icon:'chain',f:S=>{S.perm.cranks+=2;S.perm.quota*=1.12;}},
+  {id:'moths',n:'Feed the Moths',good:'Moths are worth +3, forever.',bad:'Omens appear 30% more often.',icon:'moth',f:S=>{S.bonus.moth=(S.bonus.moth||0)+3;S.perm.omen*=1.3;}},
+  {id:'tooth',n:'Sell a Tooth',good:'Gain coins now (8 + 6 per night).',bad:'Your Dread limit shrinks by 2.',icon:'tooth',f:S=>{S.pocket+=8+6*S.night;S.perm.dread-=2;}},
+  {id:'blind',n:'The Blind Eye',good:'Eyes are worth +8, forever.',bad:'One crank fewer every night.',icon:'eye',f:S=>{S.bonus.eye=(S.bonus.eye||0)+8;S.perm.cranks-=1;}},
+  {id:'whisper',n:'Whispering Dark',good:'+10% Echo, forever.',bad:'The Hunger takes 65% instead of 50%.',icon:'web',f:S=>{S.perm.echo+=.10;S.perm.hunger=Math.min(.9,S.perm.hunger+.15);}},
+  {id:'throat',n:'Gilded Throat',good:'Crowns are worth +15 and appear 50% more often.',bad:'Gain 5 Dread right now.',icon:'crown',f:S=>{S.bonus.crown=(S.bonus.crown||0)+15;S.wmul.crown=(S.wmul.crown||1)*1.5;S.dread+=5;}},
+  {id:'dream',n:'Fever Dream',good:'Begin every night already at Fever x1.5.',bad:'Bought cranks cost 50% more.',icon:'ember',f:S=>{S.perm.feverStart+=2;S.perm.crankCost*=1.5;}},
+  {id:'toll',n:'The Tolling',good:'Bells are worth +6 and appear 40% more often.',bad:'The Maw demands 8% more, forever.',icon:'bell',f:S=>{S.bonus.bell=(S.bonus.bell||0)+6;S.wmul.bell=(S.wmul.bell||1)*1.4;S.perm.quota*=1.08;}},
+  {id:'marrowb',n:'Crack the Marrow',good:'Bones and Candles are worth +2, forever.',bad:'Fever can only reach x2.',icon:'bone',f:S=>{S.bonus.bone=(S.bonus.bone||0)+2;S.bonus.candle=(S.bonus.candle||0)+2;S.perm.feverCap=Math.min(S.perm.feverCap,4);}},
+];
+const BARGAIN_BY = Object.fromEntries(BARGAINS.map(b=>[b.id,b]));
+function pickRelic(S,rng,w){ const pool=RELICS.filter(r=>!S.relics.includes(r.id)); if(!pool.length) return null; const x=rng(), want=x<w[0]?1:x<w[0]+w[1]?2:3; let c=pool.filter(r=>r.r===want); if(!c.length) c=pool; return c[Math.floor(rng()*c.length)].id; }
+function genOfferings(S,rng){
+  const out=[], used=new Set();
+  const relic=()=>{ for(let k=0;k<6;k++){ const id=pickRelic(S,rng,[.55,.38]); if(id&&!used.has(id)&&S.relics.length<MAX_RELICS){ used.add(id); return {kind:'relic',id}; } } return null; };
+  const barg=()=>{ for(let k=0;k<12;k++){ const b=BARGAINS[Math.floor(rng()*BARGAINS.length)]; if(!used.has(b.id)){ used.add(b.id); return {kind:'bargain',id:b.id}; } } return null; };
+  const rite=()=>{ for(let k=0;k<12;k++){ const r=RITES[Math.floor(rng()*RITES.length)]; if(!used.has(r.id)){ used.add(r.id); return {kind:'rite',id:r.id}; } } return null; };
+  out.push(relic()||rite()); out.push(barg()); const x=rng(); out.push((x<.4?relic():x<.75?barg():rite())||rite());
+  return out.filter(Boolean);
+}
+function takeOffering(S,o){
+  if(o.kind==='relic'){ if(S.relics.length>=MAX_RELICS) return false; S.relics.push(o.id); S.relicSince[o.id]=S.night; }
+  else if(o.kind==='rite'){ if(S.rites.length>=MAX_RITES) return false; S.rites.push(o.id); }
+  else { BARGAIN_BY[o.id].f(S); S.bargains.push(o.id); }
+  return true;
+}
 
 function has(S,id){ return S.relics.includes(id); }
 function relics(S){ return S.relics.map(id=>RELIC_BY[id]).filter(Boolean); }
 function sumProp(S,p){ return relics(S).reduce((a,r)=>a+(r[p]||0),0); }
-function symValue(S,s){ let v=SYM[s].v; for(const r of relics(S)) if(r.val&&r.val[s]) v+=r.val[s]; return v; }
+function symValue(S,s){ let v=SYM[s].v+(S.bonus[s]||0); for(const r of relics(S)) if(r.val&&r.val[s]) v+=r.val[s]; return v; }
 function symWeight(S,s){
-  if(s==='omen'){ if(S.omenBane>0) return 0; return SYM.omen.w*(has(S,'widow')?.5:1); }
-  let w=SYM[s].w; for(const r of relics(S)) if(r.wmul&&r.wmul[s]) w*=r.wmul[s]; return w;
+  if(s==='omen'){ if(S.omenBane>0) return 0; return SYM.omen.w*(has(S,'widow')?.5:1)*S.perm.omen; }
+  let w=SYM[s].w*(S.wmul[s]||1); for(const r of relics(S)) if(r.wmul&&r.wmul[s]) w*=r.wmul[s]; return w;
 }
 function patMult(S,t){
   let m=PAT[t].m; const g=PAT[t].g;
@@ -339,10 +413,12 @@ function patMult(S,t){
   if(t==='h5'&&has(S,'coffin')) m*=3;
   return m;
 }
-function echoChance(S){ return Math.min(.6, .06+sumProp(S,'echo') + (S.blackCandle>0?.3:0)); }
-function maxDread(S){ return 10+sumProp(S,'dread'); }
-function baseCranks(S){ return 11+sumProp(S,'cranks'); }
-function crankCost(S){ const b=(4+2*S.night)*Math.pow(1.5,S.extraBuys); return Math.max(1,Math.round(b*(has(S,'clock')?.7:1))); }
+function echoChance(S){ return Math.min(.6, .06+S.perm.echo+sumProp(S,'echo') + (S.blackCandle>0?.3:0)); }
+function maxDread(S){ return Math.max(4,10+S.perm.dread+sumProp(S,'dread')); }
+function baseCranks(S){ return Math.max(4,11+S.perm.cranks+sumProp(S,'cranks')); }
+function feverCap(S){ return has(S,'furnace')?Math.min(8,S.perm.feverCap+2):S.perm.feverCap; }
+function feverMult(S){ return 1+.25*Math.min(S.fever,feverCap(S)); }
+function crankCost(S){ const b=(4+2*S.night)*Math.pow(1.5,S.extraBuys); return Math.max(1,Math.round(b*S.perm.crankCost*(has(S,'clock')?.7:1))); }
 function interestRate(S){ return .10+sumProp(S,'interest'); }
 function interestCap(S){ return 15+sumProp(S,'intcap'); }
 function priceMul(S){ return (1+.18*(S.night-1))*(has(S,'funeral')?.8:1); }
@@ -350,7 +426,7 @@ function relicPrice(S,r){ return Math.max(1,Math.round([0,9,18,32][r.r]*priceMul
 function ritePrice(S,r){ return Math.max(1,Math.round(r.p*priceMul(S))); }
 function sellPrice(S,r){ return Math.floor(relicPrice(S,r)/2); }
 function rerollCost(S){ return has(S,'rat')?1:S.rerollCost; }
-function quota(S){ return Math.max(1,Math.round(quotaFor(S.night)*S.quotaMul)); }
+function quota(S){ return Math.max(1,Math.round(quotaFor(S.night)*S.quotaMul*S.perm.quota)); }
 
 function pickWeighted(items,weights,rng){ let t=0; for(const w of weights) t+=w; let x=rng()*t; for(let i=0;i<items.length;i++){ x-=weights[i]; if(x<0) return items[i]; } return items[items.length-1]; }
 function randomSymbol(S,rng){ return pickWeighted(SYM_IDS, SYM_IDS.map(s=>symWeight(S,s)), rng); }
@@ -395,6 +471,8 @@ function scoreSpin(S,g){
     if(has(S,'skull')&&pats.length>=3){ ctx.mult*=1.5; ctx.notes.push('Grinning Skull x1.5'); ctx.trig.push('skull'); }
     if(has(S,'chain')){ const k=g.flat().filter(s=>s==='crown').length; if(k){ ctx.mult*=1+.1*k; ctx.trig.push('chain'); } }
   }
+  if(has(S,'tally')&&pats.length){ const n=Math.max(0,S.night-(S.relicSince.tally??S.night)); if(n){ ctx.extra+=n*pats.length; ctx.trig.push('tally'); } }
+  if(pats.length&&S.fever>0){ ctx.fever=feverMult(S); ctx.mult*=ctx.fever; }
   if(has(S,'mouth')){ ctx.mult*=1.5; ctx.dreadAdd+=1; ctx.trig.push('mouth'); }
   if(S.boneDice>0){ ctx.mult*=3; ctx.notes.push('Loaded Bones x3'); }
   const sub=pats.reduce((a,p)=>a+p.pay,0);
@@ -402,23 +480,33 @@ function scoreSpin(S,g){
   if(total===0&&has(S,'breath')){ total=2; ctx.trig.push('breath'); ctx.notes.push('Last Breath +2'); }
   if(omens>=3){ if(has(S,'ash')) ctx.trig.push('ash'); else { ctx.voided=true; total=0; } }
   if(has(S,'saint')&&omens){ total+=4*omens; ctx.trig.push('saint'); }
+  if(has(S,'tick')&&total>0){ ctx.ticked=Math.floor(total*.25); total-=ctx.ticked; if(ctx.ticked) ctx.trig.push('tick'); }
   ctx.sub=sub; ctx.total=total;
   return ctx;
 }
 function applySpin(S,ctx){
   S.pocket+=ctx.total; S.stats.earned+=ctx.total; S.stats.spins++;
   if(ctx.total>S.stats.best) S.stats.best=ctx.total;
+  S.tick+=ctx.ticked||0;
+  const won=ctx.pats.length>0&&!ctx.voided;
+  const cap=feverCap(S);
+  if(won) S.fever=Math.min(cap,S.fever+(has(S,'furnace')?2:1)); else S.fever=has(S,'ember')?Math.max(0,S.fever-1):0;
+  if(ctx.fever===undefined && won) ctx.fever=1;
+  ctx.grow=[];
+  if(won&&has(S,'leech')&&ctx.pats.some(p=>p.s==='moth')){ S.bonus.moth=(S.bonus.moth||0)+1; ctx.grow.push(['leech','Moths +1']); }
+  if(won&&has(S,'marrow')&&ctx.pats.some(p=>p.s==='bone')){ S.bonus.bone=(S.bonus.bone||0)+1; ctx.grow.push(['marrow','Bones +1']); }
   S.dread+=ctx.dreadAdd;
-  if(S.dread>=maxDread(S)){ const take=Math.floor(S.pocket*(has(S,'icon')?.2:.5)); S.pocket-=take; S.dread=0; ctx.hunger=take; if(has(S,'icon')) ctx.trig.push('icon'); }
+  if(S.dread>=maxDread(S)){ const take=Math.floor(S.pocket*(has(S,'icon')?.2:S.perm.hunger)); S.pocket-=take; S.dread=0; ctx.hunger=take; if(has(S,'icon')) ctx.trig.push('icon'); }
   if(S.boneDice>0) S.boneDice--; if(S.blackCandle>0) S.blackCandle--; if(S.omenBane>0) S.omenBane--;
 }
 function newState(){
-  return {night:1,pocket:15,relics:[],rites:[],dread:0,cranks:0,extraBuys:0,rerollCost:2,quotaMul:1,blackCandle:0,boneDice:0,omenBane:0,shop:[],endless:false,phase:'dusk',stats:{spins:0,best:0,earned:0}};
+  return {night:1,pocket:15,relics:[],rites:[],dread:0,cranks:0,extraBuys:0,rerollCost:2,quotaMul:1,blackCandle:0,boneDice:0,omenBane:0,shop:[],offers:[],endless:false,phase:'dusk',fever:0,tick:0,bonus:{},wmul:{},bargains:[],relicSince:{},perm:{cranks:0,quota:1,omen:1,dread:0,echo:0,hunger:.5,feverStart:0,feverCap:6,crankCost:1},stats:{spins:0,best:0,earned:0}};
 }
 function startNight(S,rng){
   S.cranks=baseCranks(S); S.extraBuys=0; S.rerollCost=2; S.quotaMul=has(S,'tongue')?.9:1;
   let tithe=0; if(has(S,'tithe')){ tithe=2*S.relics.length; S.pocket+=tithe; }
-  S.shop=genShop(S,rng);
+  S.fever=Math.min(feverCap(S),S.perm.feverStart);
+  S.shop=genShop(S,rng); S.offers=genOfferings(S,rng);
   return {tithe};
 }
 function genShop(S,rng){
@@ -437,8 +525,10 @@ function feedMaw(S){
   const q=quota(S); if(S.pocket<q) return null;
   S.pocket-=q;
   const bonus=S.cranks*(has(S,'hourglass')?5:1); S.pocket+=bonus; S.cranks=0;
+  let tick=0; if(S.tick>0){ tick=S.tick*2; S.pocket+=tick; S.tick=0; }
   const interest=Math.min(interestCap(S),Math.floor(S.pocket*interestRate(S))); S.pocket+=interest;
-  return {paid:q,bonus,interest};
+  let glut=false; if(has(S,'glutton')){ for(const k of SYM_IDS) if(k!=='omen') S.bonus[k]=(S.bonus[k]||0)+1; glut=true; }
+  return {paid:q,bonus,interest,tick,glut};
 }
 function useRite(S,id){
   const i=S.rites.indexOf(id); if(i<0) return false;
@@ -450,7 +540,7 @@ function useRite(S,id){
   else if(id==='bane') S.omenBane+=5;
   S.rites.splice(i,1); return true;
 }
-if(typeof module!=='undefined') module.exports={SYM,SYM_IDS,PAT,RELICS,RITES,newState,startNight,rollGrid,scoreSpin,applySpin,feedMaw,quota,buyCrank,crankCost,relicPrice,ritePrice,useRite,has};
+if(typeof module!=='undefined') module.exports={genOfferings,takeOffering,BARGAINS,feverMult,SYM,SYM_IDS,PAT,RELICS,RITES,newState,startNight,rollGrid,scoreSpin,applySpin,feedMaw,quota,buyCrank,crankCost,relicPrice,ritePrice,useRite,has};
 </script>
 
 <!-- ===================== PRESENTATION ===================== -->
@@ -617,6 +707,74 @@ const DRAW = {
     g.restore();
   },
   /* ---- relic icons ---- */
+  leech(g){
+    g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=8;
+    g.fillStyle=lg(g,0,-20,0,20,[[0,'#5a2a2a'],[.5,'#2a0e10'],[1,'#120406']]); g.strokeStyle='#080203'; g.lineWidth=2;
+    g.beginPath(); g.moveTo(-44,6); g.bezierCurveTo(-36,-26,-6,-20,6,-14); g.bezierCurveTo(24,-6,40,-20,46,-4); g.bezierCurveTo(48,10,30,20,10,16); g.bezierCurveTo(-10,12,-30,26,-44,6); g.fill(); g.stroke();
+    g.shadowBlur=0; g.strokeStyle='rgba(200,80,80,.35)'; g.lineWidth=1.2; for(let i=-30;i<40;i+=8){ g.beginPath(); g.moveTo(i,-12); g.quadraticCurveTo(i+3,0,i,12); g.stroke(); }
+    g.fillStyle='rgba(255,200,200,.35)'; g.beginPath(); g.ellipse(-8,-10,14,3,-.2,0,TAU); g.fill();
+    g.fillStyle='#a01010'; circ(g,-44,6,5); g.fill(); g.fillStyle='#e8d0a0'; for(let a=0;a<6;a++){ circ(g,-44+Math.cos(a)*3,6+Math.sin(a)*3,1); g.fill(); }
+    g.save(); g.translate(22,-30); g.scale(.3,.3); DRAW.moth(g); g.restore();
+    g.restore();
+  },
+  spoon(g){
+    g.save(); g.rotate(-.7); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=6;
+    g.fillStyle=lg(g,-6,0,6,0,[[0,'#6a6660'],[.5,'#d8d4cc'],[1,'#5a5650']]); g.strokeStyle='#1a1a18'; g.lineWidth=1.5;
+    g.beginPath(); g.ellipse(0,-28,14,20,0,0,TAU); g.fill(); g.stroke();
+    g.fillStyle='rgba(60,10,6,.85)'; g.beginPath(); g.ellipse(0,-26,9,14,0,0,TAU); g.fill();
+    g.fillStyle=lg(g,-6,0,6,0,[[0,'#6a6660'],[.5,'#d8d4cc'],[1,'#5a5650']]); g.beginPath(); g.moveTo(-3,-8); g.lineTo(3,-8); g.lineTo(5,46); g.lineTo(-5,46); g.closePath(); g.fill(); g.stroke();
+    g.restore();
+    g.save(); g.translate(18,24); g.scale(.4,.4); DRAW.bone(g); g.restore();
+  },
+  stone(g){
+    g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=8;
+    g.fillStyle=lg(g,-30,-40,30,40,[[0,'#8a857a'],[.5,'#5a564e'],[1,'#2a2824']]); g.strokeStyle='#141310'; g.lineWidth=2;
+    g.beginPath(); g.moveTo(-26,44); g.lineTo(-30,-20); g.quadraticCurveTo(-28,-44,0,-46); g.quadraticCurveTo(28,-44,30,-20); g.lineTo(26,44); g.closePath(); g.fill(); g.stroke();
+    g.shadowBlur=0; g.strokeStyle='rgba(230,220,200,.75)'; g.lineWidth=2.4;
+    for(let k=0;k<2;k++){ for(let i=0;i<4;i++){ const x=-18+i*6+k*0, y=-24+k*30; g.beginPath(); g.moveTo(x,y); g.lineTo(x+1,y+20); g.stroke(); } g.beginPath(); g.moveTo(-22,-14+k*30); g.lineTo(4,-6+k*30); g.stroke(); }
+    for(let i=0;i<3;i++){ g.beginPath(); g.moveTo(8+i*6,6); g.lineTo(9+i*6,26); g.stroke(); }
+    g.restore();
+  },
+  bowl(g){
+    g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=8;
+    for(const [x,y,id] of [[-14,-14,'bone'],[12,-18,'key'],[0,-4,'crown']]){ g.save(); g.translate(x,y); g.scale(.36,.36); DRAW[id](g); g.restore(); }
+    g.fillStyle=lg(g,-40,0,40,0,[[0,'#2a1606'],[.4,'#8a5a24'],[.6,'#6a4018'],[1,'#1a0c04']]); g.strokeStyle='#120802'; g.lineWidth=2;
+    g.beginPath(); g.moveTo(-44,4); g.quadraticCurveTo(-40,40,0,40); g.quadraticCurveTo(40,40,44,4); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle=lg(g,0,0,0,8,BRASS); g.beginPath(); g.ellipse(0,4,44,7,0,0,TAU); g.fill(); g.stroke();
+    g.fillStyle='#3a1a08'; g.fillRect(-14,40,28,6);
+    g.restore();
+  },
+  tick(g){
+    g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=8;
+    g.strokeStyle='#1a0a06'; g.lineWidth=2.5;
+    for(const sx of [-1,1]) for(let i=0;i<4;i++){ g.beginPath(); g.moveTo(sx*14,-8+i*7); g.quadraticCurveTo(sx*34,-18+i*10,sx*40,-4+i*14); g.stroke(); }
+    g.fillStyle=rg(g,-6,0,4,40,[[0,'#d06a5a'],[.5,'#8a1a14'],[1,'#3a0606']],-10,-8); g.beginPath(); g.ellipse(0,6,26,32,0,0,TAU); g.fill();
+    g.strokeStyle='rgba(30,4,4,.6)'; g.lineWidth=1.5; g.beginPath(); g.moveTo(0,-20); g.lineTo(0,34); g.stroke();
+    g.fillStyle='rgba(255,220,200,.45)'; g.beginPath(); g.ellipse(-10,-6,6,12,-.3,0,TAU); g.fill();
+    g.fillStyle='#2a0e08'; g.beginPath(); g.ellipse(0,-30,10,8,0,0,TAU); g.fill();
+    g.fillStyle='#e8c060'; circ(g,-4,-32,2); g.fill(); circ(g,4,-32,2); g.fill();
+    g.restore();
+  },
+  ember(g){
+    g.save();
+    g.fillStyle=rg(g,0,4,4,48,[[0,'rgba(255,140,40,.6)'],[1,'rgba(255,60,0,0)']]); circ(g,0,4,48); g.fill();
+    g.shadowColor='#ff6a10'; g.shadowBlur=18;
+    g.fillStyle=rg(g,-4,0,2,34,[[0,'#fff4c0'],[.3,'#ffb030'],[.7,'#c0300a'],[1,'#3a0802']],-8,-8);
+    g.beginPath(); g.moveTo(0,36); g.bezierCurveTo(-46,6,-30,-30,-6,-20); g.quadraticCurveTo(0,-16,4,-22); g.bezierCurveTo(28,-34,46,4,0,36); g.fill();
+    g.shadowBlur=0; g.strokeStyle='rgba(40,8,2,.7)'; g.lineWidth=2; g.beginPath(); g.moveTo(-16,-8); g.lineTo(-6,4); g.lineTo(-12,16); g.moveTo(-6,4); g.lineTo(10,0); g.lineTo(16,14); g.stroke();
+    for(let i=0;i<7;i++){ g.fillStyle=`rgba(255,${150+rnd()*100|0},60,${.5+rnd()*.5})`; circ(g,(rnd()-.5)*40,-26-rnd()*20,1.5+rnd()*1.5); g.fill(); }
+    g.restore();
+  },
+  furnace(g){
+    g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=8;
+    g.fillStyle=lg(g,-36,0,36,0,IRON); g.strokeStyle='#0a0908'; g.lineWidth=2;
+    g.beginPath(); g.moveTo(-34,44); g.lineTo(-34,-14); g.quadraticCurveTo(0,-46,34,-14); g.lineTo(34,44); g.closePath(); g.fill(); g.stroke();
+    g.fillRect(-8,-50,16,16);
+    g.shadowBlur=0; g.fillStyle=rg(g,0,14,2,26,[[0,'#fff3b0'],[.4,'#ff8a20'],[1,'#5a0a02']]); g.beginPath(); g.moveTo(-20,36); g.lineTo(-20,8); g.quadraticCurveTo(0,-8,20,8); g.lineTo(20,36); g.closePath(); g.fill();
+    g.save(); g.translate(0,26); g.scale(.3,.3); DRAW.skull(g,true); g.restore();
+    g.strokeStyle='#1a1816'; g.lineWidth=3; for(const x of [-10,0,10]){ g.beginPath(); g.moveTo(x,8); g.lineTo(x,36); g.stroke(); }
+    g.restore();
+  },
   lantern(g){
     g.save();
     g.fillStyle=rg(g,0,6,2,40,[[0,'rgba(255,190,90,.55)'],[1,'rgba(255,150,50,0)']]); circ(g,0,6,40); g.fill();
@@ -1024,6 +1182,9 @@ const AU={ctx:null,master:null,on:true,
   boom(){ this.noise(2.4,.9,140,'lowpass',0,1,.005,40); this.tone(55,2,'sine',.6,22); this.noise(.3,.5,2500,'bandpass'); },
   hunger(){ this.tone(70,1.6,'sawtooth',.14,40); this.noise(1.4,.25,600,'bandpass',0,3,.1,150); this.tone(140,1,'square',.04,70,.1); },
   whisper(){ this.noise(1.3,.06,2800,'bandpass',0,9,.4,1800); this.noise(1,.04,1600,'bandpass',.3,12,.3,2400); },
+  tension(d){ this.tone(110,d,'sawtooth',.06,440,0,.2); this.tone(165,d,'square',.025,660,0,.2); this.noise(d,.08,400,'bandpass',0,6,.2,3000); },
+  fever(n){ this.tone(330*Math.pow(1.12,n),.25,'triangle',.07,0,.05); this.tone(660*Math.pow(1.12,n),.2,'sine',.04,0,.12); },
+  jackpot(){ [523,659,784,1047,1319,1568].forEach((f,i)=>{ this.tone(f,.5,'triangle',.1,0,i*.08); this.tone(f*2,.3,'sine',.04,0,i*.08+.02); }); for(let i=0;i<14;i++) this.coin(.3+i*.06); },
   heart(){ this.tone(55,.18,'sine',.4,40); this.tone(50,.2,'sine',.3,38,.22); },
   buy(){ this.coin(); this.coin(.06); this.tone(330,.3,'triangle',.06,0,.05); },
   hatch(){ this.noise(.5,.3,400,'bandpass',0,3,.05,900); this.tone(90,.4,'square',.04,60); },
@@ -1337,7 +1498,7 @@ let mouseX=0, mouseY=0, shake=0, isTouch=false;
 function setView(v){ view=v; }
 
 /* ============================== GAME STATE / UI ============================== */
-let S=null; let busy=false; let doomTimer=null;
+let S=null; let busy=false; let doomTimer=null; let turbo=!!lsGet('hollowtoll_turbo'); let shownCoins=null, coinTarget=0, coinTick=0;
 const STATS_KEY='hollowtoll_stats_v1', SAVE_KEY='hollowtoll_run_v1';
 function lsGet(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
 function lsSet(k,v){ try{ if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
@@ -1353,7 +1514,11 @@ function flash(color='#8a0000',op=.55){ const f=$('flash'); f.style.background=c
 function updateHUD(){
   if(!S) return;
   $('hNight').textContent=S.night; $('hNightMax').textContent=S.endless?' (endless)':' / '+FINAL_NIGHT;
-  $('hQuota').textContent=quota(S); $('hCoins').textContent=S.pocket; $('hCranks').textContent=S.cranks;
+  $('hQuota').textContent=quota(S); coinTarget=S.pocket; if(shownCoins===null) shownCoins=S.pocket; $('hCranks').textContent=S.cranks;
+  const qr=S.pocket/quota(S); $('qFill').style.width=Math.min(100,qr*100)+'%'; $('qbar').classList.toggle('full',qr>=1);
+  const fc=feverCap(S); $('hFever').textContent=S.fever?('x'+feverMult(S).toFixed(2)):'none'; $('feverRow').style.opacity=S.fever?1:.55;
+  const fp=$('feverPips'); if(fp.children.length!==8){ fp.innerHTML=''; for(let i=0;i<8;i++) fp.appendChild(document.createElement('i')); }
+  [...fp.children].forEach((p,i)=>{ p.className=(i<S.fever?'on':'')+(i>=fc?' cap':''); });
   $('hDread').textContent=S.dread+' / '+maxDread(S); $('dreadFill').style.width=Math.min(100,S.dread/maxDread(S)*100)+'%';
   $('hCeil').textContent=Math.max(0,ceilingY(S.night)-.55-1.62).toFixed(2)+' m';
   $('hEcho').textContent=Math.round(echoChance(S)*100)+'%'; $('hInt').textContent=Math.round(interestRate(S)*100)+'% (max '+interestCap(S)+')';
@@ -1380,16 +1545,21 @@ function updateHUD(){
 function relicTip(r){ return `<h4>${r.n}</h4><div class="lbl">${RARITY[r.r]} relic</div>${r.d}`; }
 function tipify(el,fn){ el.addEventListener('mouseenter',e=>{ const t=$('tooltip'); t.innerHTML=fn(); t.classList.remove('hidden'); posTip(e); }); el.addEventListener('mousemove',posTip); el.addEventListener('mouseleave',()=>$('tooltip').classList.add('hidden')); }
 function posTip(e){ const t=$('tooltip'); const w=t.offsetWidth, h=t.offsetHeight; t.style.left=clamp(e.clientX+14,6,innerWidth-w-6)+'px'; t.style.top=clamp(e.clientY-h-12,6,innerHeight-h-6)+'px'; }
-function pulseRelic(id){ const el=document.querySelector(`#relicBar .slot[data-relic="${id}"]`); if(el){ el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); } }
+function pulseRelic(id,label,delay=0){ setTimeout(()=>{ const el=document.querySelector(`#relicBar .slot[data-relic="${id}"]`); if(!el) return; el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
+  const r=el.getBoundingClientRect(); const t=document.createElement('div'); t.className='relTag'; t.textContent=label||RELIC_BY[id].n; t.style.left=(r.left+r.width/2)+'px'; t.style.top=(r.top-4)+'px'; document.body.appendChild(t); setTimeout(()=>t.remove(),1500); AU.click(); },delay); }
+let bannerTimer=null;
+function banner(t,sub='',bad=false){ const b=$('banner'); b.querySelector('.t').textContent=t; b.querySelector('.s').textContent=sub; b.className=''; void b.offsetWidth; b.className='show'+(bad?' bad':''); clearTimeout(bannerTimer); bannerTimer=setTimeout(()=>b.className='',2300); }
 
 /* ---------- Flow ---------- */
 function showOnly(id){ ['title','nightCard','death','ending'].forEach(x=>$(x).classList.toggle('hidden',x!==id)); }
 function newRun(){
-  AU.init(); S=newState(); const st=stats(); st.runs++; lsSet(STATS_KEY,st);
+  AU.init(); S=newState(); shownCoins=null; const st=stats(); st.runs++; lsSet(STATS_KEY,st);
   crusherTarget=ceilingY(1); beginNight();
 }
 function beginNight(){
-  const info=startNight(S,rnd); S.phase='dusk'; saveRun();
+  const info=startNight(S,rnd); S.phase='dusk'; saveRun(); showNightCard(info);
+}
+function showNightCard(info={}){
   $('ncPre').textContent=S.night===1?'You wake in the undercroft':'The bell tolls';
   $('ncTitle').textContent='Night '+roman(S.night);
   $('ncText').innerHTML=`The Maw demands <b class="redt">${quota(S)}</b> coins before dawn.`;
@@ -1401,7 +1571,26 @@ function beginNight(){
   showOnly('nightCard'); $('hud').classList.remove('hidden'); setView('center'); updateHUD(); AU.toll();
 }
 function startPlay(){
-  showOnly(null); S.phase='play'; updateHUD(); openShop();
+  showOnly(null); S.phase='play'; updateHUD();
+  if(S.offers&&S.offers.length) showOffers(); else openShop();
+}
+function showOffers(){
+  const g=$('offerGrid'); g.innerHTML='';
+  S.offers.forEach(o=>{
+    let icon,title,rar,body,cls;
+    if(o.kind==='relic'){ const r=RELIC_BY[o.id]; icon=r.icon; title=r.n; rar=RARITY[r.r]+' relic · free'; body=`<div class="ds">${r.d}</div>`; cls='r'+r.r; }
+    else if(o.kind==='rite'){ const r=RITE_BY[o.id]; icon=r.icon; title=r.n; rar='Rite · free'; body=`<div class="ds">${r.d}</div>`; cls='rite'; }
+    else { const b=BARGAIN_BY[o.id]; icon=b.icon; title=b.n; rar='Bargain'; body=`<div class="ds"><div class="good">+ ${b.good}</div><div class="bad">− ${b.bad}</div></div>`; cls='bargain'; }
+    const d=document.createElement('div'); d.className='offer '+cls;
+    d.innerHTML=`<img src="${iconURL(icon)}"><div class="rar">${rar}</div><div class="nm">${title}</div>${body}<button>Take it</button>`;
+    const full=(o.kind==='relic'&&S.relics.length>=MAX_RELICS)||(o.kind==='rite'&&S.rites.length>=MAX_RITES);
+    if(full){ d.querySelector('button').disabled=true; d.querySelector('button').textContent='No room'; d.style.pointerEvents='none'; d.style.opacity=.45; }
+    d.onclick=()=>{ if(!takeOffering(S,o)) return; S.offers=[]; AU.buy(); AU.whisper(); flash(o.kind==='bargain'?'#3a0a40':'#3a2a08',.35);
+      if(o.kind==='bargain') say(BARGAIN_BY[o.id].n+'. The dark remembers the deal.','bad',2600); else say((o.kind==='relic'?RELIC_BY:RITE_BY)[o.id].n+' is yours.','good',2200);
+      $('offers').classList.add('hidden'); updateHUD(); saveRun(); setTimeout(openShop,500); };
+    g.appendChild(d);
+  });
+  $('offers').classList.remove('hidden'); AU.whisper();
 }
 function openShop(){
   if(!S||S.phase!=='play'||busy) return;
@@ -1420,7 +1609,7 @@ function renderShop(){
     const b=document.createElement('button'); b.innerHTML=o.sold?'Sold':`Buy <span class="gold">${price} c</span>`;
     const full=isR?S.relics.length>=MAX_RELICS:S.rites.length>=MAX_RITES;
     b.disabled=o.sold||S.pocket<price||full; if(full&&!o.sold) b.innerHTML='No room';
-    b.onclick=()=>{ if(S.pocket<price) return; S.pocket-=price; o.sold=true; if(isR) S.relics.push(o.id); else S.rites.push(o.id); AU.buy(); renderShop(); updateHUD(); saveRun(); };
+    b.onclick=()=>{ if(S.pocket<price) return; S.pocket-=price; o.sold=true; if(isR){ S.relics.push(o.id); S.relicSince[o.id]=S.night; } else S.rites.push(o.id); AU.buy(); renderShop(); updateHUD(); saveRun(); };
     d.appendChild(b); grid.appendChild(d);
   });
   $('shopCoins').textContent=S.pocket+' coins';
@@ -1446,6 +1635,11 @@ async function pull(){
   const grid=rollGrid(S,rnd);
   await sleep(250);
   AU.spinLoop();
+  const pre=findPatterns(grid), om=grid.flat().filter(x=>x==='omen').length;
+  const BIG=['h4','h5','vee','peak','swarm','abyss'];
+  const tease=pre.some(p=>BIG.includes(p.t))||pre.length>=3, danger=om>=3&&!has(S,'ash');
+  const tf=turbo?.5:1;
+  if(tease||danger){ setTimeout(()=>{ AU.tension(((tease?2.4:1.8))*tf); bulbFlash=2.4*tf; if(danger){ mawLight.intensity=3; } },(650+2*240)*tf); }
   const stops=[];
   reels.forEach((reel,c)=>{
     const target=(reel.cur+6)%N_SLOTS;
@@ -1453,11 +1647,12 @@ async function pull(){
     reel.strip[(target+1)%N_SLOTS]=grid[0][c]; reel.strip[target]=grid[1][c]; reel.strip[(target+N_SLOTS-1)%N_SLOTS]=grid[2][c];
     paintReel(reel);
     const from=reel.offset, dest=(target+.5)/N_SLOTS; let delta=((dest-from)%1+1)%1; delta+=2+c*.0+ (c>=3?1:0);
-    const dur=900+c*330;
+    let dur=(650+c*240)*tf; if(tease&&c>=3) dur+=(c===3?900:1900)*tf; if(danger&&c===4) dur+=1200*tf;
     reel.anim={from,to:from+delta,t0:performance.now(),dur}; reel.cur=target;
     stops.push(new Promise(res=>reel.anim.done=res));
   });
   await Promise.all(stops);
+  if(danger){ shake=.2; flash('#400000',.4); }
   await resolveSpin(grid);
   busy=false; updateHUD(); saveRun(); checkDoom();
 }
@@ -1472,18 +1667,26 @@ async function resolveSpin(grid){
     const mid=p.cells[Math.floor(p.cells.length/2)], w=cellWorld(mid[0],mid[1]);
     if(!ctx.voided) floatText(w,'+'+p.pay,'',`${PAT[p.t].n} · ${SYM[p.s].n} ${p.base}×${p.mult}${p.mirrored?' ×2':''}`); else floatText(w,'+'+p.pay,'bad',PAT[p.t].n);
     AU.chime(i++); running+=p.pay; bulbFlash=1.2;
-    await sleep(Math.max(260,620-i*60));
+    await sleep(Math.max(200,500-i*60)*(turbo?.5:1));
   }
-  for(const t of ctx.trig) pulseRelic(t);
+  ctx.trig.forEach((t,k)=>pulseRelic(t,null,k*140));
   if(ctx.voided){ AU.bad(); flash('#5a0000',.5); shake=.25; say(`${ctx.omens} Omens. The Hunger licks your winnings clean.`,'bad'); }
   else if(ctx.total>0){
     const center=cellWorld(1,2); center.y+=.55;
-    if(ctx.pats.length>1||ctx.mult!==1||ctx.extra) floatText(center,ctx.total+' coins','',ctx.notes.join(' · '));
+    const notes=ctx.notes.slice(); if(ctx.fever&&ctx.fever>1) notes.unshift('Fever x'+ctx.fever.toFixed(2)); if(ctx.ticked) notes.push('Tick drinks '+ctx.ticked);
+    if(ctx.pats.length>1||ctx.mult!==1||ctx.extra) floatText(center,ctx.total+' coins','',notes.join(' · '));
     for(let k=0;k<Math.min(10,1+Math.floor(ctx.total/5));k++) AU.coin(k*.05);
-    if(ctx.total>=60){ shake=.12; say(ctx.total>=200?'The machine shrieks with delight.':'The reels purr.', 'good'); }
+    const q=quota(S), big=Math.max(25,q*.35);
+    if(ctx.pats.some(p=>p.t==='abyss')){ banner('THE ABYSS OPENS','+'+ctx.total+' coins'); AU.jackpot(); coinBurst(60); shake=.6; flash('#806000',.4); }
+    else if(ctx.total>=q*.8&&ctx.total>=40){ banner('THE MACHINE WEEPS GOLD','+'+ctx.total+' coins'); AU.jackpot(); coinBurst(45); shake=.45; flash('#806000',.35); }
+    else if(ctx.total>=big){ banner('BIG TOLL','+'+ctx.total+' coins'); AU.jackpot(); coinBurst(22); shake=.25; }
+    else coinBurst(Math.min(8,Math.ceil(ctx.total/6)));
   } else if(!ctx.omens) { /* nothing */ }
-  const before=S.pocket;
+  const fBefore=S.fever;
   applySpin(S,ctx);
+  if(S.fever>fBefore){ AU.fever(S.fever); if(S.fever>=3) floatText(cellWorld(0,2).add(new THREE.Vector3(0,.35,0)),'FEVER x'+feverMult(S).toFixed(2),'',''); }
+  else if(fBefore>=2&&S.fever<fBefore){ say(S.fever?'Your Fever cools.':'Your Fever breaks.','bad',1500); AU.tone(220,.5,'sine',.08,110); }
+  (ctx.grow||[]).forEach(([id,txt],k)=>pulseRelic(id,txt,300+k*200));
   if(ctx.hunger!==undefined){ await sleep(400); AU.hunger(); flash('#300000',.7); shake=.35; say(`Your Dread overflows. The Hunger takes ${ctx.hunger} coins.`,'bad',3500); }
   else if(ctx.omens&&!ctx.voided){ say(ctx.omens===1?'An Omen. Your Dread grows.':`${ctx.omens} Omens. Your Dread grows.`,'bad',1800); }
   const st=stats(); if(ctx.total>st.bestSpin){ st.bestSpin=ctx.total; lsSet(STATS_KEY,st); }
@@ -1520,7 +1723,8 @@ async function feed(){
   await sleep(n*45+900);
   const res=feedMaw(S);
   mawMat.emissiveIntensity=.9; AU.hunger(); await sleep(500);
-  say(`The Maw swallows ${res.paid}.`+(res.bonus?` Unused cranks: +${res.bonus}.`:'')+(res.interest?` Interest: +${res.interest}.`:''),'good',3500);
+  say(`The Maw swallows ${res.paid}.`+(res.bonus?` Unused cranks: +${res.bonus}.`:'')+(res.tick?` The Tick bursts: +${res.tick}.`:'')+(res.interest?` Interest: +${res.interest}.`:''),'good',3800);
+  if(res.tick) pulseRelic('tick','+'+res.tick); if(res.glut) pulseRelic('glutton','All symbols +1',300);
   updateHUD();
   await sleep(1300);
   // ceiling lowers
@@ -1532,7 +1736,9 @@ async function feed(){
   if(finished){ S.phase='ending'; saveRun(); showOnly('ending'); setView('center'); const st=stats(); st.bestNight=Math.max(st.bestNight,FINAL_NIGHT); lsSet(STATS_KEY,st); return; }
   beginNight();
 }
-const flyers=[];
+const flyers=[], bursts=[];
+function coinBurst(n){ for(let i=0;i<n;i++){ const m=new THREE.Mesh(coinGeo,coinMat); const p=machine.localToWorld(new THREE.Vector3((rnd()-.5)*.6,.9,.55)); m.position.copy(p); scene.add(m);
+  bursts.push({m,v:new THREE.Vector3((rnd()-.5)*2.2,2+rnd()*2.5,.8+rnd()*1.6),spin:new THREE.Vector3(rnd()*12,rnd()*12,rnd()*12),life:2.2+rnd()}); } }
 function spawnFlyingCoin(delay){
   setTimeout(()=>{ const m=new THREE.Mesh(coinGeo,coinMat); const from=machine.localToWorld(new THREE.Vector3((rnd()-.5)*.5,.85,.5)); m.position.copy(from); scene.add(m);
     flyers.push({m,from,to:MAW_MOUTH.clone().add(new THREE.Vector3(0,(rnd()-.5)*.2,(rnd()-.5)*.4)),t:0,dur:.75+rnd()*.25,spin:rnd()*10}); },delay);
@@ -1558,8 +1764,8 @@ function toTitle(){ if(S&&S.phase!=='dead') saveRun(); $('hud').classList.add('h
 function refreshTitle(){ const st=stats(); $('titleStats').innerHTML=st.runs?`Descents: ${st.runs} · Deepest night: ${st.bestNight} · Escapes: ${st.wins} · Best spin: ${st.bestSpin}`:'';
   const sv=lsGet(SAVE_KEY); $('btnContinue').classList.toggle('hidden',!(sv&&sv.night)); }
 function continueRun(){
-  const sv=lsGet(SAVE_KEY); if(!sv) return; AU.init(); S=Object.assign(newState(),sv); resetScene(); busy=false;
-  if(S.phase==='dusk'){ beginNight(); return; }
+  const sv=lsGet(SAVE_KEY); if(!sv) return; AU.init(); S=Object.assign(newState(),sv); shownCoins=null; resetScene(); busy=false;
+  if(S.phase==='dusk'){ showNightCard(); return; }
   if(S.phase==='ending'){ $('hud').classList.remove('hidden'); showOnly('ending'); setView('center'); updateHUD(); return; }
   S.phase='play'; showOnly(null); $('hud').classList.remove('hidden'); setView('center'); updateHUD(); checkDoom();
 }
@@ -1585,6 +1791,8 @@ $('shopClose').onclick=closeShop; $('btnReroll').onclick=reroll;
 $('helpClose').onclick=()=>$('help').classList.add('hidden'); $('btnHelp').onclick=openHelp;
 $('btnSound').onclick=()=>{ AU.init(); $('btnSound').textContent='Sound: '+(AU.toggle()?'on':'off'); };
 $('btnMenu').onclick=toTitle;
+$('btnTurbo').onclick=()=>{ turbo=!turbo; $('btnTurbo').innerHTML='Turbo: '+(turbo?'on':'off')+' <kbd>T</kbd>'; lsSet('hollowtoll_turbo',turbo); };
+$('offerSkip').onclick=()=>{ S.offers=[]; S.pocket+=5; AU.coin(); $('offers').classList.add('hidden'); updateHUD(); saveRun(); setTimeout(openShop,300); };
 $('btnRetry').onclick=()=>{ resetScene(); $('blackout').style.opacity=0; newRun(); };
 $('btnToTitle').onclick=()=>{ S=null; resetScene(); toTitle(); };
 $('btnLeave').onclick=()=>{ const st=stats(); st.wins++; lsSet(STATS_KEY,st); lsSet(SAVE_KEY,null); S=null; $('blackout').style.opacity=1; setTimeout(()=>{ resetScene(); toTitle(); $('titleStats').innerHTML+='<br><span class="gold">You walked out. For now.</span>'; },1300); };
@@ -1595,6 +1803,8 @@ addEventListener('keydown',e=>{
   if(k==='escape'){ if(!$('shop').classList.contains('hidden')) closeShop(); $('help').classList.add('hidden'); return; }
   if(k==='h'){ $('help').classList.contains('hidden')?openHelp():$('help').classList.add('hidden'); return; }
   if(k==='m'){ $('btnSound').click(); return; }
+  if(k==='t'){ $('btnTurbo').click(); return; }
+  if(!$('offers').classList.contains('hidden')) return;
   if(!$('nightCard').classList.contains('hidden')&&(k===' '||k==='enter')){ e.preventDefault(); $('ncGo').click(); return; }
   if(!$('shop').classList.contains('hidden')) { if(k==='e') closeShop(); return; }
   if(k===' '){ e.preventDefault(); pull(); } else if(k==='c') buyCrankUI(); else if(k==='e') openShop(); else if(k==='f') feed();
@@ -1643,6 +1853,11 @@ function frame(now){
   // flying coins
   for(let i=flyers.length-1;i>=0;i--){ const f=flyers[i]; f.t+=dt/f.dur; const t=Math.min(1,f.t); f.m.position.lerpVectors(f.from,f.to,t); f.m.position.y+=Math.sin(t*Math.PI)*.9; f.m.rotation.x+=dt*f.spin; f.m.rotation.z+=dt*f.spin*.7;
     if(t>=1){ scene.remove(f.m); flyers.splice(i,1); AU.coin(); } }
+  for(let i=bursts.length-1;i>=0;i--){ const b=bursts[i]; b.life-=dt; b.v.y-=9.8*dt; b.m.position.addScaledVector(b.v,dt);
+    if(b.m.position.y<.01){ b.m.position.y=.01; b.v.y*=-.35; b.v.x*=.6; b.v.z*=.6; if(Math.abs(b.v.y)>.4&&rnd()<.3) AU.coin(); }
+    b.m.rotation.x+=b.spin.x*dt; b.m.rotation.y+=b.spin.y*dt; if(b.life<=0){ scene.remove(b.m); bursts.splice(i,1); } }
+  if(shownCoins!==null&&shownCoins!==coinTarget){ const d=coinTarget-shownCoins; const step=Math.sign(d)*Math.max(1,Math.abs(d)*dt*4); shownCoins=Math.abs(step)>=Math.abs(d)?coinTarget:shownCoins+step;
+    const el=$('hCoins'); el.textContent=Math.round(shownCoins); coinTick+=dt; if(d>0&&coinTick>.06){ coinTick=0; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } }
   // camera
   const V=VIEWS[view]; const k=1-Math.pow(.02,dt);
   camPos.lerp(V.p,k*.9); camLook.lerp(V.l,k*.9);
@@ -1663,6 +1878,7 @@ requestAnimationFrame(frame);
 // fonts may load late: repaint textures that use them
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{ mqTex.image=marqueeCanvas(); mqTex.needsUpdate=true; panelTex.image=panelCanvas(); panelTex.needsUpdate=true; hatchTex.image=hatchCanvas(); hatchTex.needsUpdate=true; plaque.material.map.image=plaqueCanvas(); plaque.material.map.needsUpdate=true; });
 refreshTitle();
+$('btnTurbo').innerHTML='Turbo: '+(turbo?'on':'off')+' <kbd>T</kbd>';
 window.__HT={get S(){return S;},set S(v){S=v;},reels,updateHUD,pull,feed,die,camera,setView,openShop,closeShop};
 })();
 </script>
