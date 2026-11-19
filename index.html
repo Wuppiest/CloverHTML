@@ -39,6 +39,7 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
 #bar{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);z-index:21;display:flex;gap:10px}
 #touchBar{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:21;display:flex;gap:6px}
 #touchBar button{font-size:14px;padding:7px 10px;touch-action:none}
+#caption.maw{color:#ff6a50;font-style:italic;letter-spacing:.04em;text-shadow:0 0 14px #300,0 0 4px #000}
 #caption.voice{color:#b8f08a;font-style:italic;text-shadow:0 0 12px #000,0 0 6px #1a4010}
 #toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-140%);z-index:40;background:linear-gradient(#2a1d0c,#120a04);border:1px solid #e8c060;border-radius:6px;padding:10px 22px;text-align:center;box-shadow:0 0 30px rgba(232,192,96,.45);transition:transform .45s cubic-bezier(.2,1.4,.4,1);pointer-events:none}
 #toast.show{transform:translate(-50%,0)}
@@ -157,7 +158,7 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
       <li>Three or more patterns in one spin grant a <b>free spin</b> (up to four per toll). So do patterns that include a <b>Sand Glass</b>.</li>
       <li>After a spin you may <b>hold reels</b>: click a reel and it stays put for the next spin. You get one hold per toll.</li>
       <li>Every third debt is a <b>boss debt</b> with a cruel rule. Break it for a rare relic and a full Jackpot gauge.</li>
-      <li>Sometimes <b>strange events</b> strike a spin. Sometimes a <b>voice in the wall</b> offers a deal. Neither is ever quite fair.</li>
+      <li>Sometimes <b>strange events</b> strike a spin. Sometimes eyes light up behind the grate: click it to hear the <b>voice in the wall</b>'s deal before they close. Neither is ever quite fair.</li>
       <li>Some shapes are <b>secret</b>. Find them yourself. <b>Trophies</b> unlock new relics for later descents.</li>
       <li><b>Fever</b> (right tube): every winning spin in a row adds +0.25× to payouts. A dud puts it out.</li>
       <li>The <b>Peddler's hatch</b> (right wall) sells relics (they sit on the shelf, up to 7) and rites (on the stool, single use, click to perform).</li>
@@ -342,7 +343,7 @@ const DEALS=[
 const DEAL_BY=Object.fromEntries(DEALS.map(d=>[d.id,d]));
 function boss(S){ return cnt(S,'hood')?null:S.boss; }
 function rollEvent(S,rng){ if(rng()<.07*(1+cnt(S,'stormglass'))) return EVENTS[Math.floor(rng()*EVENTS.length)].id; return null; }
-function voiceChance(S){ return .11*(1+cnt(S,'lodgerkey')); }
+function voiceChance(S){ if(S.debt<2||S.voiceDebt===S.debt) return 0; return .07*(1+cnt(S,'lodgerkey')); }
 function pickDeal(S,rng){ const ok=DEALS.filter(d=>d.ok(S)); return ok.length?ok[Math.floor(rng()*ok.length)].id:null; }
 function dealPower(S){ return 1+.5*cnt(S,'contract'); }
 function acceptDeal(S,id,rng){ const k=dealPower(S); const out={};
@@ -1787,7 +1788,7 @@ const vent=new THREE.Group(); vent.position.set(2.75,3.45,-2.96); scene.add(vent
 add(new THREE.BoxGeometry(.78,.46,.04),MAT.dark,0,0,-.03,vent,false);
 (()=>{ const [c,g]=mkCanvas(256,160); g.clearRect(0,0,256,160); g.strokeStyle='#3a332e'; g.lineWidth=12; g.strokeRect(6,6,244,148); g.lineWidth=9; for(let x=36;x<240;x+=30){ g.beginPath(); g.moveTo(x,8); g.lineTo(x,152); g.stroke(); }
   g.fillStyle='rgba(120,50,20,.6)'; for(let i=0;i<40;i++) g.fillRect(rnd()*256,rnd()*160,3,3);
-  add(new THREE.PlaneGeometry(.8,.48),new THREE.MeshStandardMaterial({map:clampTex(c),transparent:true,metalness:.6,roughness:.6,envMap:envTex}),0,0,.01,vent,false); })();
+  window.__ventGrate=add(new THREE.PlaneGeometry(.8,.48),new THREE.MeshStandardMaterial({map:clampTex(c),transparent:true,metalness:.6,roughness:.6,envMap:envTex}),0,0,.01,vent,false); })();
 const ventEyes=[]; for(const sx of [-1,1]){ const e=add(new THREE.SphereGeometry(.03,12,8),new THREE.MeshBasicMaterial({color:new THREE.Color(0,0,0)}),sx*.09,.02,-.01,vent,false); ventEyes.push(e); }
 const ventLight=new THREE.PointLight(0x80ff60,0,2.2,2); ventLight.position.set(0,0,.4); vent.add(ventLight);
 let voiceOn=0;
@@ -1946,6 +1947,7 @@ const VIEWS={
   up:{p:new THREE.Vector3(0,1.5,2.2),l:new THREE.Vector3(0,4.2,-.4)},
   offers:{p:new THREE.Vector3(0,1.72,2.9),l:new THREE.Vector3(0,1.55,.6)},
   title:{p:new THREE.Vector3(1.7,2.0,2.7),l:new THREE.Vector3(-.3,1.8,-1.2)},
+  scare:{p:new THREE.Vector3(-2.5,1.4,-1.9),l:new THREE.Vector3(-2.72,1.4,-2.98)},
 };
 let view='title'; const camPos=VIEWS.title.p.clone(), camLook=VIEWS.title.l.clone();
 let mouseX=0, mouseY=0, shake=0, isTouch=false;
@@ -2206,6 +2208,61 @@ function dealChoice(i){ const id=dealId; offerCards.forEach(c=>c.visible=false);
   if(id==='sharpen'&&S.levels.length){ setTimeout(()=>showLevels(()=>afterSpinCheck()),900); return; }
   if(id==='swap') trophyChecks();
   afterSpinCheck(); }
+ix(window.__ventGrate,{when:()=>!!S&&mode==='play'&&!busy&&!!S.pendingDeal,tip:()=>`<h4>The grate</h4>Something wants to make you an offer. (${S.pendingDeal.left} spin${S.pendingDeal.left>1?'s':''} left)`,click:()=>{ const id=S.pendingDeal.id; S.pendingDeal=null; showDeal(id); }});
+/* ============================== A LIVING ROOM ============================== */
+// rat
+const rat=new THREE.Group(); scene.add(rat); rat.visible=false;
+(()=>{ const fur=new THREE.MeshStandardMaterial({color:0x2a2420,roughness:1}); const b=add(new THREE.SphereGeometry(.1,12,8),fur,0,.06,0,rat); b.scale.set(1.4,.7,.8);
+  const h=add(new THREE.ConeGeometry(.055,.14,10),fur,.17,.06,0,rat); h.rotation.z=-Math.PI/2;
+  for(const z of [-.03,.03]){ add(new THREE.SphereGeometry(.012,6,4),new THREE.MeshBasicMaterial({color:new THREE.Color(2.5,.2,.1)}),.16,.09,z,rat,false); add(new THREE.SphereGeometry(.022,6,4),new THREE.MeshStandardMaterial({color:0x8a6060}),.12,.11,z*1.4,rat,false); }
+  const t=add(new THREE.CylinderGeometry(.006,.012,.32,5),new THREE.MeshStandardMaterial({color:0x8a6a6a}),-.28,.04,0,rat); t.rotation.z=Math.PI/2+.15; })();
+let ratRun=null;
+function runRat(){ const dir=rnd()<.5?1:-1, z=.4+rnd()*1.5; ratRun={t:0,dur:2.2+rnd(),x0:-3.4*dir,x1:3.4*dir,z,stop:rnd()<.5?.3+rnd()*.4:-1,paused:0}; rat.visible=true; rat.rotation.y=dir>0?0:Math.PI; AU.tone(2600,.06,'square',.03,3400); setTimeout(()=>AU.tone(2900,.05,'square',.025,3800),140); }
+// shadow figure
+const shadowTex=(()=>{ const [c,g]=mkCanvas(128,256); g.fillStyle='rgba(0,0,0,.95)'; g.beginPath(); g.ellipse(64,46,22,28,0,0,TAU); g.fill(); g.beginPath(); g.moveTo(20,256); g.quadraticCurveTo(18,96,64,74); g.quadraticCurveTo(110,96,108,256); g.fill(); g.fillStyle='rgba(255,40,20,.9)'; circ(g,56,44,2.5); g.fill(); circ(g,72,44,2.5); g.fill(); return new THREE.CanvasTexture(c); })();
+const shadowFig=add(new THREE.PlaneGeometry(.75,1.9),new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,opacity:0,depthWrite:false}),3.0,.95,-2.6,scene,false); shadowFig.rotation.y=-.3;
+let shadowT=-1;
+// drips
+function drip(){ const p=new THREE.Vector3((rnd()-.5)*5.5,crusherY-.45,-2.4+rnd()*4); const col=rnd()<.5?0x8a0a06:0x7a8a90; const m=new THREE.Mesh(new THREE.SphereGeometry(.012,6,4),new THREE.MeshBasicMaterial({color:col})); m.position.copy(p); scene.add(m); drops.push({m,v:0,col}); }
+const drops=[];
+// the Maw talks
+const MAW_LINES={
+  dud:['Nothing. Again.','Is that all?','The reels pity you.','Pull. Pull. Pull.','I can wait. Can you?'],
+  win:['Yes... fatten up.','Good. More for me.','Bring it here.','Delicious.','I can smell it on you.'],
+  big:['MORE.','Yes. YES.','Now you are worth eating.'],
+  idle:['Feed me.','The ceiling is getting impatient.','Tick. Tock.','I am still hungry.','Do not make me wait.'],
+  close:['So close. Pull again.','I can almost taste it.','Almost full. Almost.'],
+  omen:['Did you see that?','They are watching you too.','Bad luck has a smell.'],
+};
+let mawTalkCD=0, idleT=0;
+function mawSay(kind,force=false){ if(!force&&(mawTalkCD>0||rnd()>.45)) return; const L=MAW_LINES[kind]; mawTalkCD=9+rnd()*8; mawPulse=Math.max(mawPulse,1.6); AU.tone(70,.6,'sawtooth',.09,52); AU.voice(4);
+  say('“'+L[Math.floor(rnd()*L.length)]+'”','maw',2600); }
+// rare jumpscare
+async function jumpscare(){ const prev=view; setView('scare'); AU.noise(.6,.9,2500,'bandpass',0,1,.002,600); AU.tone(110,.8,'sawtooth',.25,55); AU.tone(117,.8,'sawtooth',.2,58); AU.tone(1600,.4,'square',.06,900);
+  flash('#ff0000',.35); shake=.9; mawPulse=5; fxCA=.03; fxWarp=.4; camPos.copy(VIEWS.scare.p); camLook.copy(VIEWS.scare.l); await sleep(520); setView(prev==='scare'?'center':prev); }
+// ambient scheduler
+let ambientT=6;
+function ambientTick(dt){
+  if(!S||mode==='title'||mode==='dead') return;
+  mawTalkCD=Math.max(0,mawTalkCD-dt);
+  if(mode==='play'&&!busy&&!feedTimer){ idleT+=dt; if(idleT>22){ idleT=0; mawSay('idle',true); } } else idleT=0;
+  ambientT-=dt; if(ambientT>0) return; ambientT=5+rnd()*9;
+  const r=rnd();
+  if(r<.2&&!ratRun) runRat();
+  else if(r<.36){ const lit=flames.filter(f=>!f.out); if(lit.length>3){ const f=lit[Math.floor(rnd()*lit.length)]; f.out=true; f.s.getWorldPosition(tmpV); emit(tmpV,12,{color:0x888888,speed:.1,up:.4,life:1.6,grav:-.1,size:.05,k:.6}); AU.noise(.3,.08,600,'bandpass'); setTimeout(()=>{ f.out=false; AU.noise(.15,.05,2000,'bandpass'); },2500+rnd()*3000); } }
+  else if(r<.5){ chains.forEach(ch=>ch.userData.kick=.25+rnd()*.2); for(let i=0;i<4;i++) AU.tone(1800+rnd()*900,.08,'triangle',.03,0,i*.09); }
+  else if(r<.66){ for(let i=0;i<1+Math.floor(rnd()*3);i++) setTimeout(drip,i*300); }
+  else if(r<.74&&shadowT<0) shadowT=0;
+  else if(r<.86){ AU.whisper(); }
+  else { AU.noise(1.2,.12,220,'lowpass',0,4,.2,90); shake=Math.max(shake,.04); for(let k=0;k<20;k++) emit(new THREE.Vector3((rnd()-.5)*4,crusherY-.4,-2+rnd()*3),1,{color:0x9a8a70,speed:.1,life:2,grav:2,size:.02,k:.8}); }
+}
+function ambientFrame(dt){
+  if(ratRun){ const R0=ratRun; if(R0.stop>0&&R0.t>=R0.stop&&R0.paused<1.2){ R0.paused+=dt; rat.position.y=Math.abs(Math.sin(time*30))*.004; } else { R0.t+=dt/R0.dur; }
+    const t=Math.min(1,R0.t); rat.position.set(lerp(R0.x0,R0.x1,t),Math.abs(Math.sin(time*40))*.01,R0.z); if(t>=1){ ratRun=null; rat.visible=false; } }
+  if(shadowT>=0){ shadowT+=dt; const o=shadowT<.6?shadowT/.6:shadowT<1.8?1:Math.max(0,1-(shadowT-1.8)/.6); shadowFig.material.opacity=o*.85; shadowFig.position.x=3.05-shadowT*.35; if(shadowT>2.4){ shadowT=-1; shadowFig.material.opacity=0; } }
+  for(let i=drops.length-1;i>=0;i--){ const d=drops[i]; d.v+=9.8*dt; d.m.position.y-=d.v*dt; if(d.m.position.y<.02){ emit(d.m.position,6,{color:d.col,speed:.6,life:.3,grav:5,size:.02,k:d.col===0x8a0a06?1.2:1.6}); AU.tone(1400+rnd()*800,.05,'sine',.03,700); scene.remove(d.m); drops.splice(i,1); } }
+  chains.forEach((ch,i)=>{ const k=ch.userData.kick||0; if(k>0){ ch.userData.kick=Math.max(0,k-dt*.12); ch.rotation.z+=Math.sin(time*5+i)*k*.6; } });
+}
 /* spin */
 let leverT=0;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -2247,7 +2304,8 @@ async function pull(){
   await resolveSpin(grid);
   if(jpNow){ coinBurst(70); shake=.5; trophy('jackpot'); }
   busy=false; refresh(); saveRun();
-  if(S.spins>0&&!S.voiceUsed&&mode==='play'&&rnd()<voiceChance(S)){ S.voiceUsed=true; const d=pickDeal(S,rnd); if(d){ showDeal(d); return; } }
+  if(S.pendingDeal){ S.pendingDeal.left--; if(S.pendingDeal.left<=0){ S.pendingDeal=null; say('The eyes behind the grate close.','voice',2200); } }
+  else if(S.spins>0&&mode==='play'&&rnd()<voiceChance(S)){ const d=pickDeal(S,rnd); if(d){ S.voiceDebt=S.debt; S.pendingDeal={id:d,left:3}; AU.voice(3); say('Psst... the grate. Up here.','voice',2600); } }
   afterSpinCheck();
 }
 function pulseRelic(id,label,delay=0){ setTimeout(()=>{ const p=relicPlaques.find(p=>p.visible&&p.userData.id===id); if(!p) return; p.userData.pulse=1; const w=p.getWorldPosition(new THREE.Vector3()); w.y+=.2; floatText(w,`<span style="font-size:17px">${label||RELIC_BY[id].n}</span>`); AU.click(); },delay); }
@@ -2293,6 +2351,8 @@ async function resolveSpin(grid){
   (ctx.grow||[]).forEach(([id,txt],k)=>pulseRelic(id,txt,300+k*200));
   if(ctx.hunger!==undefined){ await sleep(400); AU.hunger(); flash('#300000',.7); shake=.35; say(`Your Dread overflows. The Hunger takes ${ctx.hunger} coins.`,'bad',3500); }
   else if(ctx.omens&&!ctx.voided&&!ctx.devour) say(ctx.omens===1?'An Omen. Your Dread grows.':`${ctx.omens} Omens. Your Dread grows.`,'bad',1800);
+  if(ctx.devour||ctx.voided) mawSay('omen'); else if(!ctx.total) mawSay('dud'); else if(ctx.I>=.6) mawSay('big',true); else if(S.paid+S.pocket>=owed(S)*.85&&S.paid<owed(S)) mawSay('close'); else if(ctx.total) mawSay('win');
+  if(S.dread>=maxDread(S)*.75&&rnd()<.06) setTimeout(jumpscare,500);
   if(ctx.total>=1000) trophy('spin1k'); if(ctx.total>=100000) trophy('spin100k'); if(feverMult(S)>=2.5) trophy('fever'); trophyChecks();
   const st=stats(); if(ctx.total>st.bestSpin){ st.bestSpin=ctx.total; lsSet(STATS_KEY,st); }
   refresh(); await sleep(200*tf);
@@ -2374,7 +2434,7 @@ function hideGore(){ $('gore').classList.add('hidden'); $('gore').innerHTML=''; 
 function resetScene(){ camRoll=0; camDrop=0; lightsOut=0; flames.forEach(f=>f.out=false); hideGore(); crusherSpeed=.35; crusherY=crusherTarget=ceilingY(S?S.debt:1); crusher.position.y=crusherY; $('blackout').style.opacity=0; busy=false; doorTarget=0; offerCards.forEach(c=>c.visible=false); shopCards.forEach(c=>c.visible=false); bar(null); }
 function toTitle(){ stopFeed(); if(S&&mode!=='dead') saveRun(); mode='title'; $('help').classList.add('hidden'); showOnly('title'); setView('title'); resetScene(); refreshTitle(); }
 function refreshTitle(){ const st=stats(); $('titleStats').innerHTML=st.runs?`Descents: ${st.runs} · Deepest debt: ${st.bestDebt} · Escapes: ${st.wins} · Best spin: ${st.bestSpin}`:''; const sv=lsGet(SAVE_KEY); $('btnContinue').classList.toggle('hidden',!(sv&&sv.debt)); }
-function continueRun(){ const sv=lsGet(SAVE_KEY); if(!sv) return; AU.init(); S=Object.assign(newState(),sv); S.held=[]; S.lastGrid=null; S.event=null; shownCoins=S.pocket; lastWin=null; resetScene(); showOnly(null); mode='play'; setView('center'); refresh();
+function continueRun(){ const sv=lsGet(SAVE_KEY); if(!sv) return; AU.init(); S=Object.assign(newState(),sv); S.pendingDeal=null; S.held=[]; S.lastGrid=null; S.event=null; shownCoins=S.pocket; lastWin=null; resetScene(); showOnly(null); mode='play'; setView('center'); refresh();
   if(S.levels&&S.levels.length) showLevels(()=>{ if(S.offers.length) showOffers(()=>enterShop()); else enterShop(); }); else if(S.offers&&S.offers.length) showOffers(S.round===0?()=>enterShop():null); else afterSpinCheck(); reels.forEach(paintReel); }
 function buildHelp(){
   const hs=$('helpSyms'); hs.innerHTML=''; SYM_IDS.filter(s=>(s!=='mask'||(S&&has(S,'mask')))&&(!['moon','sand'].includes(s)||(S&&symWeight(S,s)>0))).forEach(s=>{ const d=document.createElement('div'); d.className='helpSym'; d.innerHTML=`<img src="${iconURL(s)}"><div><div class="sc">${SYM[s].n}</div><div class="dimt" style="font-size:13px">${s==='omen'?'adds Dread':s==='mask'?'wild':s==='sand'?'patterns with it give a free spin':'worth '+(S?symValue(S,s):SYM[s].v)+(S&&lv(S,s)>1?' · Lv '+roman(lv(S,s)):'')}</div></div>`; hs.appendChild(d); });
@@ -2460,12 +2520,12 @@ function frame(now){
     const base=camera.position.clone().addScaledVector(dir,1.25);
     inspectCard.position.copy(base).addScaledVector(up,.08+Math.sin(time*1.4)*.008); inspectCard.quaternion.copy(camera.quaternion);
     inspectBtns.forEach((b,i)=>{ const h=hovered&&hovered.mesh===b; b.position.copy(base).addScaledVector(up,-.44).addScaledVector(right,(i?.18:-.18)); b.quaternion.copy(camera.quaternion); b.scale.setScalar(h?1.08:1); b.material.opacity=b.userData.disabled&&i===0?.4:1; }); }
-  voiceOn=Math.max(mode==='deal'?1:0,voiceOn-dt*.5); ventEyes.forEach((e,i)=>{ const k=voiceOn*(1.5+Math.sin(time*7+i)*.3)*((Math.sin(time*.8)>.97)?.1:1); e.material.color.setRGB(k*.6,k*1.6,k*.3); }); ventLight.intensity=voiceOn*1.2;
+  voiceOn=Math.max((mode==='deal'||(S&&S.pendingDeal))?1:0,voiceOn-dt*.5); ventEyes.forEach((e,i)=>{ const k=voiceOn*(1.5+Math.sin(time*7+i)*.3)*((Math.sin(time*.8)>.97)?.1:1); e.material.color.setRGB(k*.6,k*1.6,k*.3); }); ventLight.intensity=voiceOn*1.2;
   eventTint=Math.max(0,eventTint-dt*.35); scene.fog.color.setRGB(.024+eventTint*.18,.016,.012);
   if(S&&boss(S)&&mode!=='title'){ bulbs.forEach((b,i)=>{ if(bulbFlash<=1.5) b.material.emissive.setRGB(1,.12,.06); }); }
   if(S&&AU.ctx&&AU.on&&mode!=='title'&&mode!=='dead'){ const o=owed(S), pr=Math.min(1,S.paid/Math.max(1,o)); const I={danger:Math.min(1,(1-pr)*(S.round/ROUNDS)+(S.boss?.3:0)),fever:S.fever,hype:Math.min(1,bloomBoost)};
     const bpm=84+S.fever*5+I.danger*30; if(MUS.next<AU.ctx.currentTime) MUS.next=AU.ctx.currentTime+.05; while(MUS.next<AU.ctx.currentTime+.12){ AU.musicStep(MUS.step,MUS.next,I); MUS.next+=60/bpm/2; MUS.step++; } }
-  updateParticles(dt);
+  updateParticles(dt); ambientTick(dt); ambientFrame(dt);
   for(const r of rings){ if(!r.m.visible) continue; r.t+=dt/r.dur; const e=1-Math.pow(1-Math.min(1,r.t),3); r.m.scale.setScalar(.2+e*r.max); r.m.material.opacity=Math.max(0,1-r.t); r.m.quaternion.copy(camera.quaternion); if(r.t>=1) r.m.visible=false; }
   beamBoost=Math.max(0,beamBoost-dt*.35); beamMat.opacity=beamBoost*.22; beams.visible=beamBoost>.01; beams.rotation.z+=dt*.35;
   if(S&&S.fever>0&&mode!=='title'&&mode!=='dead'){ const rate=S.fever*S.fever*1.2*dt; for(const sx of [-1,1]){ let n=Math.floor(rate+rnd()); if(n>0){ const p=machine.localToWorld(tmpV.set(sx*1.36,1.3+rnd()*1.3,-.1)); emit(p,n,{color:S.fever>=6?0xff3010:0xff8a20,speed:.25,up:1.1,life:1,grav:-.6,drag:.5,size:.07+S.fever*.006,k:2.4,spread:.06}); } }
