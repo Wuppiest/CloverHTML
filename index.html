@@ -2162,10 +2162,13 @@ function countBanner(title,total,bad=false){ banner(title,'+0',bad); clearInterv
   countTimer=setInterval(()=>{ const p=Math.min(1,(performance.now()-t0)/dur); const v=Math.round(total*(1-Math.pow(1-p,3))); $('banner').querySelector('.s').textContent='+'+v.toLocaleString('en')+' coins'; AU.tick(k++%30); if(p>=1) clearInterval(countTimer); },45); }
 function coinRain(n){ for(let i=0;i<n;i++){ const m=new THREE.Mesh(coinGeo,coinMat); m.position.set((rnd()-.5)*5.5,crusherY-.6-rnd()*.6,-2.4+rnd()*4.5); scene.add(m);
   bursts.push({m,v:new THREE.Vector3((rnd()-.5)*.4,-rnd()*1.5,(rnd()-.5)*.4),spin:new THREE.Vector3(rnd()*14,rnd()*14,rnd()*14),life:3+rnd()*1.5}); } }
-const TIERS=[[3,'IMPOSSIBLE',5],[1,'MONSTROUS WIN',4],[.4,'HUGE WIN',3],[.15,'BIG WIN',2]];
+const TIERS=[[4,'IMPOSSIBLE',5],[1.5,'MONSTROUS WIN',4],[.6,'HUGE WIN',3],[.25,'BIG WIN',2]];
+function structTier(ctx){ if(ctx.jackpot||ctx.pats.some(p=>p.t==='abyss')) return 5; const n=ctx.pats.length; if(!n) return 0; const mc=Math.max(...ctx.pats.map(p=>p.cells.length));
+  if(n>=6||mc>=12) return 5; if(n>=4||mc>=9) return 4; if(n>=3||mc>=5) return 3; if(n>=2||mc>=4) return 2; return 1; }
 function celebrate(ctx,q){
-  const ratio=ctx.total/Math.max(1,q); let tier=0, name='';
+  const ratio=ctx.total/Math.max(40,q); let tier=0, name='';
   for(const [r,n,t] of TIERS) if(ratio>=r){ tier=t; name=n; break; }
+  const cap=ctx.st??structTier(ctx); if(tier>cap){ tier=cap>=2?cap:0; name=(TIERS.find(x=>x[2]===tier)||[0,''])[1]; }
   if(ctx.jackpot){ tier=Math.max(tier,4); name='JACKPOT!'; }
   if(ctx.pats.some(p=>p.t==='abyss')){ tier=5; name='THE ABYSS OPENS'; }
   if(!tier){ coinBurst(Math.max(1,Math.round(2+8*ratio/.15))); if(ratio>=.08&&ctx.pats.length>=2) ring(cellWorld(1,2),0xffd080,1.4,.6,1.6); if(ctx.total>=8) AU.hype(ctx.pats.length); return; }
@@ -2250,7 +2253,7 @@ async function pull(){
 function pulseRelic(id,label,delay=0){ setTimeout(()=>{ const p=relicPlaques.find(p=>p.visible&&p.userData.id===id); if(!p) return; p.userData.pulse=1; const w=p.getWorldPosition(new THREE.Vector3()); w.y+=.2; floatText(w,`<span style="font-size:17px">${label||RELIC_BY[id].n}</span>`); AU.click(); },delay); }
 async function resolveSpin(grid){
   const ctx=scoreSpin(S,grid); const tf=turbo?.5:1;
-  const I=(ctx.voided||ctx.devour)?0:Math.min(1,Math.sqrt(ctx.total/Math.max(1,owed(S)))); ctx.I=I;
+  ctx.st=structTier(ctx); const I=(ctx.voided||ctx.devour)?0:Math.min(Math.sqrt(ctx.total/Math.max(40,owed(S))),.1+ctx.st*.18); ctx.I=I;
   const omenCells=[]; grid.forEach((row,r)=>row.forEach((s,c)=>{ if(s==='omen') omenCells.push([r,c]); }));
   if(omenCells.length){ fxCells(omenCells,'omen',4+4*omenCells.length); fxDesat=Math.min(.7,.08*omenCells.length*omenCells.length); fxCA=Math.max(fxCA,.0015*omenCells.length*omenCells.length); omenCells.forEach(([r,c])=>setCell(r,c,0xff2010,.95)); AU.whisper(); await sleep(350*tf); }
   let i=0;
