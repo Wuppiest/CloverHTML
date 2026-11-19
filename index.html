@@ -2420,11 +2420,11 @@ function takeLevel(i){ const s=S.levels[i]; if(!s) return; levelUp(S,s); setTime
 function takeOffer(i){ const o=S.offers[i]; if(!o||offerCards[i].userData.full) return; if(!takeOffering(S,o)) return; AU.buy(); flash(o.kind==='bargain'?'#3a0a40':'#3a2a08',.3);
   if(o.kind==='tune'){ say('The machine shifts: '+offerDef(o).title+'.','good',2600); AU.grind(.6); payKey=''; for(let r=0;r<3;r++) for(let c=0;c<5;c++) emit(cellWorld(r,c),3,{color:0xffd080,speed:.6,life:.6,grav:1,size:.03,k:2.4}); }
   else say(o.kind==='bargain'?BARGAIN_BY[o.id].n+'. The dark remembers the deal.':offerDef(o).title+' is yours.',o.kind==='bargain'?'bad':'good',2600); finishOffers(false); }
-function tuneRerollCost(){ return Math.max(2,Math.round(3*Math.pow(1.6,S.debt-1)*Math.pow(2,S.tuneRerolls||0))); }
+function tuneRerollCost(){ const base=Math.max(3,owed(S)*.05); return Math.round(base*Math.pow(2,S.tuneRerolls||0)*(1+.1*(S.totalRerolls||0))); }
 function renderOfferBar(){ const de=LANG==='de'; const isTune=S.offers[0]&&S.offers[0].kind==='tune'; const c=isTune?tuneRerollCost():0;
   bar(`<button id="refuseBtn">${de?'Nichts ändern':'Change nothing'} <span class="gold">(+5 ${de?'Münzen':'coins'})</span></button>`+(isTune?`<button id="rerollTune" ${S.pocket<c?'disabled':''}>${de?'Neu würfeln':'Reroll'} <span class="gold">(${c} ${de?'Münzen':'coins'})</span></button>`:''));
   $('refuseBtn').onclick=()=>finishOffers(true); if(isTune) $('rerollTune').onclick=rerollTunes; }
-function rerollTunes(){ if(mode!=='offers') return; const c=tuneRerollCost(); if(S.pocket<c){ AU.click(); return; } S.pocket-=c; S.tuneRerolls=(S.tuneRerolls||0)+1; const strong=!!S.offers[0].strong;
+function rerollTunes(){ if(mode!=='offers') return; const c=tuneRerollCost(); if(S.pocket<c){ AU.click(); return; } S.pocket-=c; S.tuneRerolls=(S.tuneRerolls||0)+1; S.totalRerolls=(S.totalRerolls||0)+1; const strong=!!S.offers[0].strong;
   S.offers=genTunings(S,rnd,strong); S.offers.forEach(o=>o.strong=strong); AU.grind(.5); AU.coin(); AU.coin(.06); shake=.08;
   offerAnim=.3; S.offers.forEach((o,i)=>{ const cc=offerCards[i]; cc.userData.mat.map=cardTex(o,{foot:'TAKE IT'}); cc.userData.mat.emissiveMap=cc.userData.mat.map; cc.userData.mat.needsUpdate=true; cc.visible=true; cc.userData.full=false; emit(cc.position,14,{color:0xffd080,speed:.8,life:.5,grav:1,size:.03,k:2.5}); });
   renderOfferBar(); refresh(); saveRun(); }
