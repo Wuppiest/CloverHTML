@@ -105,7 +105,7 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
 <div id="vignette"></div><div id="grain"></div>
 <div id="flash"></div>
 <div id="floaters"></div>
-<div id="corner" class="hidden"><button id="btnHelp">Rules</button><button id="btnTurbo">Turbo: off</button><button id="btnSound">Sound: on</button><button id="btnMenu">Menu</button></div>
+<div id="corner" class="hidden"><button id="btnHelp">Rules</button><button id="btnLang">Deutsch</button><button id="btnTurbo">Turbo: off</button><button id="btnSound">Sound: on</button><button id="btnMenu">Menu</button></div>
 <div id="caption"></div>
 <div id="keys" class="hidden">Space pull · 1 seven spins · 2 three spins · hold F feed the Maw · B ring the bell · E hatch · T turbo · H rules</div>
 <div id="bar" class="hidden"></div>
@@ -123,6 +123,7 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
     <button id="btnTrophies">Trophies</button>
   </div>
   <div class="stats" id="titleStats"></div>
+  <div class="stats" id="titleLang" style="cursor:pointer;text-decoration:underline;margin-top:10px">Language: English · auf Deutsch umstellen</div>
 </div>
 
 <div id="death" class="screen hidden">
@@ -655,7 +656,7 @@ function settle(S,rng){
   if(has(S,'tally')) S.tally=(S.tally||0)+cnt(S,'tally');
   const paid=o, wasBoss=!!S.boss; S.debt++;
   const info=beginDebt(S,rng);
-  S.offers=genTunings(S,rng,true);
+  S.offers=genTunings(S,rng,true); S.offers.forEach(o=>o.strong=true); S.tuneRerolls=0;
   let bossRelic=null; if(wasBoss){ S.jp=100; const pool=RELICS.filter(r=>r.r===3&&!LOCKED.has(r.id)&&canAddRelic(S,r.id)); if(pool.length){ bossRelic=pool[Math.floor(rng()*pool.length)].id; S.relics.push(bossRelic); } }
   return {paid,surplus,bonus,tick,glut,tithe:info.tithe,wasBoss,bossRelic};
 }
@@ -1321,6 +1322,220 @@ const AU={ctx:null,master:null,on:true,
 };
 
 
+/* ============================== LANGUAGE (EN / DE) ============================== */
+let LANG=(()=>{ try{ return localStorage.getItem('hollowtoll_lang')||'en'; }catch(e){ return 'en'; } })();
+const DE_REL={
+  mothlantern:['Mottenlaterne','Motten sind +3 wert.'], waxheart:['Wachsherz','Kerzen sind +3 wert.'], ossuary:['Beinhausstaub','Knochen sind +3 wert.'],
+  keyring:['Ring rostiger Schlüssel','Schlüssel sind +5 wert.'], glasseye:['Glasauge','Augen sind +7 wert.'], crackedbell:['Gesprungene Glocke','Glocken sind +10 wert.'],
+  pauper:['Bettlerkrone','Kronen sind +20 wert.'], mothjar:['Mottenglas','Motten erscheinen doppelt so oft.'], tallow:['Talgvorrat','Kerzen erscheinen doppelt so oft.'],
+  bonesaw:['Knochensäge','Knochen erscheinen doppelt so oft.'], skeletonkey:['Dietrich','Schlüssel erscheinen 80% öfter.'], veil:['Schleier der Augen','Augen erscheinen 80% öfter.'],
+  gildedtooth:['Vergoldeter Zahn','Kronen erscheinen doppelt so oft.'], silk:['Spinnenseide','+8% Echo. Symbole kopieren gern ihren Nachbarn.'], root:['Verknotete Wurzel','+14% Echo.'],
+  nail:['Horizontnagel','Reihen bekommen +1 Multiplikator.'], plumb:['Senklot','Spalten bekommen +2 Multiplikator.'], cane:['Krummer Stock','Diagonalen bekommen +2 Multiplikator.'],
+  fangs:['Wolfsfänge','Fang- und Kamm-Muster bekommen +4 Multiplikator.'], hive:['Schwarmgeist','Schwarm- und Abgrund-Multiplikatoren werden verdoppelt.'],
+  ledger:['Zahnbuch','+5% Zinsen auf Münzen im Schlund.'], purse:['Geizhalsbeutel','Zinsen können 25 höher steigen.'], handle:['Ersatzkurbel','Jedes Paket gibt +1 Spin.'],
+  clock:['Wächteruhr','Spin-Pakete kosten 25% weniger.'], salt:['Salzkreis','Grauen-Grenze +6.'], ash:['Aschebann','Omen können keinen Spin mehr ungültig machen und nichts mehr verschlingen.'],
+  saint:['Blutender Heiliger','Jedes Omen, das erscheint, zahlt 4 Münzen.'], tithe:['Totengräberzehnt','Beginnt eine neue Schuld, bekommst du 3 Münzen pro Relikt.'],
+  breath:['Letzter Atem','Ein Spin ohne Gewinn zahlt stattdessen 2 Münzen.'], mirror:['Spiegelscherbe','Das beste Muster jedes Spins zahlt doppelt.'],
+  chain:['Sammlerkette','Spins zahlen +10% für jede Krone auf den Walzen.'], mouth:['Hungriges Maul','Alle Spins zahlen +50%. Jeder Spin bringt 1 Grauen.'],
+  coffin:['Sargnagel','Volle Reihen zahlen x3.'], icon:['Weinende Ikone','Wenn der Hunger frisst, nimmt er 20% statt 50%.'],
+  flame:['Motte zum Licht','Bilden Motten und Kerzen beide Muster, zahlt der Spin x2.'], funeral:['Grabmünze','Der Hausierer verlangt 20% weniger.'],
+  rat:['Rattenkönig','An der Luke klopfen kostet immer nur 1 Münze.'], dice:['Knöchelchen','+1 Münze für jedes gebildete Muster.'],
+  skull:['Grinsender Schädel','Spins mit 3 oder mehr Mustern zahlen x1,5.'], hourglass:['Sandlose Sanduhr','Jedes nie gekaufte Paket ist beim Begleichen 12 Münzen wert.'],
+  widow:['Witwenschleier','Omen erscheinen halb so oft.'], tongue:['Silberzunge','Jede Schuld ist 10% kleiner.'],
+  leech:['Mottenegel','Wächst: Bilden Motten ein Muster, sind Motten für immer +1 wert.'], marrow:['Marklöffel','Wächst: Bilden Knochen ein Muster, sind Knochen für immer +1 wert.'],
+  tally:['Strichstein','Wächst: Jedes Muster zahlt +1 für jede Schuld, die du mit diesem Stein beglichen hast.'], glutton:['Vielfraßschale','Wächst: Bei jeder beglichenen Schuld sind alle Symbole für immer +1 wert.'],
+  tick:['Vollgesogene Zecke','Trinkt 25% jedes Gewinns. Beim Begleichen platzt sie und zahlt alles doppelt zurück.'],
+  ember:['Glutherz','Eine Niete kühlt dein Fieber nur um eine Stufe ab, statt es zu löschen.'], furnace:['Knochenofen','Fieber steigt doppelt so schnell und erreicht bis x3.'],
+  lodestone:['Magnetstein','+10% Echo. Symbole kleben an ihren Nachbarn.'], wishbone:['Wunschknochen','Einmal pro Zoll wird ein Spin ohne Muster neu gedreht.'],
+  loadedreel:['Gezinkte Walze','Jeder Spin ohne Muster bekommt eine weitere geheime Neudrehung.'], siamese:['Siamesische Walze','Die mittlere Walze kopiert in der Hälfte der Fälle die linke.'],
+  shears:['Mottenschere','Motten erscheinen nicht mehr. Weniger Symbolsorten, mehr Treffer.'], snuffer:['Kerzenlöscher','Kerzen erscheinen nicht mehr. Weniger Symbolsorten, mehr Treffer.'],
+  mirrorhall:['Spiegelsaal','+8% Echo, und Echo wirkt auch diagonal.'], glever:['Vergoldeter Hebel','Goldene Spins kommen doppelt so oft.'],
+  gambler:['Spielerzahn','Goldene Spins zahlen x3 statt x2.'], idol:['Vielarmiges Idol','Spins zahlen x1,5 für jede Symbolsorte, die ein Muster bildet (2 Sorten = x2,25, 3 = x3,4).'],
+  finger:['Finger des Heiligen','Muster aus 4 oder mehr Feldern zahlen doppelt.'], censer:['Weihrauchfass der Fülle','Die Jackpot-Röhre füllt sich doppelt so schnell.'],
+  blackmass:['Schwarze Messe','Omen werden zum Joker: Sie vervollständigen jedes Muster und können nichts mehr verschlingen. Das Grauen steigt trotzdem.'],
+  mask:['Grinsende Maske','Fügt die Maske hinzu. Eine Maske zählt als jedes Symbol.'], abacus:['Knöchelabakus','Jeder 6. Spin zahlt x5.'],
+  chalice:['Überlaufender Kelch','Dein Fieber bricht nie ab. Es wächst nur.'], oil:['Salböl','Wird ein Symbol aufgelevelt, steigt es um zwei Stufen.'],
+  scale:['Wucherwaage','+5% Zinsen, und Zinsen haben keine Grenze.'], gauge:['Vergoldete Anzeige','Jackpot-Spins zahlen x4 statt x2.'],
+  moonpearl:['Mondperle','Blutmonde erscheinen doppelt so oft.'], crimson:['Karminlinse','Blutmonde sind +60 wert.'], sandpipe:['Sandrohr','Sanduhren erscheinen doppelt so oft.'],
+  clamp:['Rostige Zwinge','+1 Walzen-Halt pro Zoll.'], vise:['Eiserner Schraubstock','Muster, die eine gehaltene Walze berühren, zahlen doppelt.'],
+  crossbone:['Gekreuzte Knochen','Kreuz-Muster zahlen x3.'], giltframe:['Goldrahmen','Rahmen-Muster zahlen x3.'], ladder:['Morsche Leiter','Treppen-Muster zahlen x3.'],
+  lodgerkey:['Schlüssel des Untermieters','Die Stimme in der Wand kommt doppelt so oft.'], contract:['Unterschriebener Vertrag','Deals mit der Stimme in der Wand sind 50% besser.'],
+  hood:['Henkerskapuze','Boss-Regeln gelten nicht mehr für dich.'], stormglass:['Sturmglas','Seltsame Ereignisse passieren doppelt so oft.'],
+  omenfeast:['Omenfest','Jedes Omen auf den Walzen bringt +15% für den Spin.'], dreadengine:['Grauensmaschine','Spins zahlen +10% für jeden Punkt Grauen.'],
+  bowl:['Bettelschale','Solange dein Beutel weniger als ein Zehntel der Schuld hält, zahlen Spins x3.'], twinflame:['Zwillingsflammen','Kerzen und Motten sind dasselbe Symbol.'],
+  kingmaker:['Königsmacher','Glocken und Kronen sind dasselbe Symbol.'], wick:['Kurzer Docht','Dreier-Zölle geben +2 Spins.'], lamp:['Hortlampe','Spins zahlen +5% für jedes Relikt, das du besitzt, Kopien eingeschlossen.'],
+};
+const DE_RITE={holy:['Weihwasser','Wäscht alles Grauen fort.'],blackcandle:['Schwarze Kerze','Nächste 3 Spins: +30% Echo.'],bonedice:['Gezinkte Knochen','Dein nächster Spin zahlt x3.'],
+  tonic:['Bittertrank','+2 Spins sofort.'],pact:['Blutpakt','Diese Schuld schrumpft um 15%.'],bane:['Omenbann','Nächste 5 Spins: keine Omen.']};
+const DE_BARG={chains:['Schwerere Ketten','+1 Spin in jedem Paket.','Jede Schuld wächst um 12%, für immer.'],moths:['Füttere die Motten','Motten sind für immer +3 wert.','Omen erscheinen 30% öfter.'],
+  tooth:['Verkaufe einen Zahn','Sofort Münzen (wächst mit jeder Schuld).','Deine Grauen-Grenze sinkt um 2.'],blind:['Das blinde Auge','Augen sind für immer +8 wert.','Spin-Pakete kosten 20% mehr.'],
+  whisper:['Flüsterndes Dunkel','+10% Echo, für immer.','Der Hunger nimmt 65% statt 50%.'],throat:['Vergoldete Kehle','Kronen sind +15 wert und erscheinen 50% öfter.','Sofort 5 Grauen.'],
+  dream:['Fiebertraum','Jedes Paket startet mit Fieber x1,5 oder mehr.','Spin-Pakete kosten 30% mehr.'],toll:['Das Läuten','Glocken sind +6 wert und erscheinen 40% öfter.','Jede Schuld wächst um 8%, für immer.'],
+  marrowb:['Knack das Mark','Knochen und Kerzen sind für immer +2 wert.','Fieber erreicht höchstens x2.']};
+const DE_BOSS={eclipse:['Die Finsternis','Omen kommen zweieinhalbmal so oft.'],columns:['Der Aufrechte','Reihen zahlen nichts. Nur Spalten, Diagonalen und Formen zählen.'],
+  famine:['Die Hungersnot','Jeder Zoll gibt zwei Spins weniger.'],greed:['Der Abschöpfer','Der Schlund schöpft ein Viertel jedes Gewinns ab, bevor er dich erreicht.'],
+  dim:['Die Feuchte','Dein Fieber steigt nicht über x1,5.'],fog:['Der Nebel','Der Automat hilft dir nicht mehr. Keine geheimen Neudrehungen, weniger Echo.']};
+const DE_EVT={moon:['BLUTMOND','Blutmonde überschwemmen diesen Spin.'],hum:['DIE WÄNDE SUMMEN','Echo schwillt für diesen Spin an.'],double:['DER AUTOMAT BEBT','Dieser Spin zahlt doppelt.'],
+  gift:['MÜNZEN AUS DEM DUNKEL','Münzen tropfen von der Decke in deinen Beutel.'],storm:['OMENSTURM','Überall Omen, aber dieser Spin zahlt dreifach.'],crowns:['EINE GEKRÖNTE STUNDE','Kronen regnen in diesem Spin auf die Walzen.']};
+const DE_DEAL={wager:'Setz die Hälfte deines Beutels. Bildet dein nächster Spin zwei oder mehr Muster, bekommst du es dreifach zurück.',dreadspins:'Schluck fünf Grauen, und ich stecke dir drei Spins zu.',
+  jpfill:'Ein Fünftel deines Beutels, und deine Jackpot-Röhre ist voll.',fever:'Verbrenne ein Zehntel deines Beutels. Dein Fieber wird heißer brennen.',
+  swap:'Gib mir das Relikt, das du am wenigsten liebst. Ich lasse dir ein seltsameres da.',sharpen:'Ein Viertel dessen, was der Schlund hält, und ich schärfe eines deiner Symbole.',
+  tip:'Hör zu... die nächsten drei Spins mögen Kronen. Kostenlos. Dieses Mal.'};
+const DE_SYM={moth:'Motte',candle:'Kerze',bone:'Knochen',key:'Schlüssel',eye:'Auge',bell:'Glocke',crown:'Krone',omen:'Omen',mask:'Maske',moon:'Blutmond',sand:'Sanduhr'};
+const DE_SYM_PL={moth:'Motten',candle:'Kerzen',bone:'Knochen',key:'Schlüssel',eye:'Augen',bell:'Glocken',crown:'Kronen',omen:'Omen',mask:'Masken',moon:'Blutmonde',sand:'Sanduhren'};
+const DE_PAT={h3:'Dreierreihe',h4:'Viererreihe',h5:'Volle Reihe',v:'Spalte',d:'Diagonale',vee:'Fang',peak:'Kamm',swarm:'Schwarm (9+ gleiche)',abyss:'Abgrund (alle 15)',cross:'Kreuz',frame:'Rahmen',stairs:'Treppe',fall:'Fallende Treppe'};
+const DE_RAR=['','Abgenutzt','Seltsam','Verflucht'];
+const DE_TROPHY={debt1:['Erste Zahlung','Begleiche eine Schuld.'],debt5:['Tiefe Taschen','Erreiche Schuld V.'],escape:['Tageslicht','Begleiche jede Schuld und geh hinaus.'],
+  spin1k:['Vierstellig','Gewinne 1.000 Münzen in einem Spin.'],spin100k:['Obszön','Gewinne 100.000 Münzen in einem Spin.'],jackpot:['Bauch des Automaten','Triff einen Jackpot-Spin.'],
+  stack3:['Hamsterer','Besitze drei Kopien eines Relikts.'],shelf7:['Volles Regal','Fülle das Regal mit sieben verschiedenen Relikten.'],abyss:['Zurückgestarrt','Bilde den Abgrund.'],
+  secret_cross:['???','Finde ein verstecktes Muster.'],secret_frame:['???','Finde ein verstecktes Muster.'],secret_stairs:['???','Finde ein verstecktes Muster.'],
+  boss:['Bossbrecher','Begleiche eine Boss-Schuld.'],dealer:['Eingelebt','Nimm fünf Deals der Stimme in der Wand an.'],broke:['Mittellos','Werde mit leerem Beutel zerquetscht.'],
+  fever:['Unheilige Hitze','Erreiche Fieber x2,5.'],omens:['Omenmagnet','Sieh sechs Omen in einem Spin.'],events:['Wettergegerbt','Erlebe fünf seltsame Ereignisse.']};
+const MAW_DE={dud:['Nichts. Schon wieder.','Ist das alles?','Die Walzen bemitleiden dich.','Zieh. Zieh. Zieh.','Ich kann warten. Kannst du es?'],
+  win:['Ja... werd schön fett.','Gut. Mehr für mich.','Bring es her.','Köstlich.','Ich kann es an dir riechen.'],big:['MEHR.','Ja. JA.','Jetzt lohnt es sich, dich zu fressen.'],
+  idle:['Füttere mich.','Die Decke wird ungeduldig.','Tick. Tack.','Ich habe immer noch Hunger.','Lass mich nicht warten.'],
+  close:['So nah. Zieh nochmal.','Ich kann es fast schmecken.','Fast voll. Fast.'],omen:['Hast du das gesehen?','Sie beobachten dich auch.','Pech hat einen Geruch.']};
+const HELLO_DE=['Psst. Hier unten. Nein... hier oben.','Du ziehst so schön. Ich habe ein Angebot.','Der Schlund muss es nicht erfahren.','Ich habe dich beobachtet. Hör zu.','Münzen für Geflüster. Geflüster für Münzen.'];
+const DE_STR={
+  'All three tolls are spent for this debt.':'Alle drei Zölle für diese Schuld sind verbraucht.','At least one reel must spin.':'Mindestens eine Walze muss sich drehen.',
+  'Feed the Maw what you owe (hold it), then ring the bell.':'Füttere den Schlund mit deiner Schuld (gedrückt halten), dann läute die Glocke.',
+  'No room. Sell something first.':'Kein Platz. Verkauf zuerst etwas.','Not while the reels still owe you spins.':'Nicht, solange dir die Walzen noch Spins schulden.',
+  'Nothing left to buy and the Maw is hungry. Sell relics from the shelf, or ring the bell and face it.':'Nichts mehr zu kaufen und der Schlund hat Hunger. Verkauf Relikte vom Regal oder läute die Glocke und stell dich.',
+  'Psst... the grate. Up here.':'Psst... das Gitter. Hier oben.','Something with too many fingers lays its wares on the ledge.':'Etwas mit zu vielen Fingern legt seine Waren aufs Brett.',
+  'Spend your spins first.':'Verbrauch erst deine Spins.','The Maw is full. Ring the bell to settle the debt.':'Der Schlund ist voll. Läute die Glocke, um die Schuld zu begleichen.',
+  'The Maw is still hungry.':'Der Schlund hat noch Hunger.','The eyes behind the grate close.':'Die Augen hinter dem Gitter schließen sich.',
+  'The fingers withdraw. You cannot afford it.':'Die Finger ziehen sich zurück. Das kannst du dir nicht leisten.','The machine offers to sharpen one of its symbols. Choose.':'Der Automat bietet an, eines seiner Symbole zu schärfen. Wähle.',
+  'Use a rite. It may still save you.':'Nutze einen Ritus. Er kann dich noch retten.','You cannot pay for new wares.':'Du kannst neue Ware nicht bezahlen.',
+  'You have nothing left to give.':'Du hast nichts mehr zu geben.','You ring for judgement.':'Du läutest zum Gericht.','Your purse is empty.':'Dein Beutel ist leer.',
+  'Your tolls are spent and the Maw is full. Ring the bell.':'Deine Zölle sind verbraucht und der Schlund ist voll. Läute die Glocke.',
+  'Your Fever cools.':'Dein Fieber kühlt ab.','Your Fever breaks.':'Dein Fieber bricht.','The machine lets you adjust it. Choose one change.':'Der Automat lässt sich verstellen. Wähle eine Änderung.',
+  'The dark leaves three offerings at your feet. Take one.':'Das Dunkel legt dir drei Gaben vor die Füße. Nimm eine.','No spins. Press a toll on the deck.':'Keine Spins. Drück einen Zoll-Knopf auf dem Pult.',
+  'Your tolls are spent.':'Deine Zölle sind verbraucht.','ONE.':'EINS.','TWO.':'ZWEI.','THREE.':'DREI.','An Omen. Your Dread grows.':'Ein Omen. Dein Grauen wächst.',
+  'The bell tolls. The ceiling has waited long enough.':'Die Glocke schlägt. Die Decke hat lange genug gewartet.','"Suit yourself. I will be here. I am always here."':'„Wie du willst. Ich bin hier. Ich bin immer hier.“',
+  'The Maw is full. Ring the bell.':'Der Schlund ist voll. Läute die Glocke.','Heat crawls up your arms. Your Fever burns.':'Hitze kriecht deine Arme hinauf. Dein Fieber brennt.',
+  'The Jackpot gauge fills to the brim.':'Die Jackpot-Röhre füllt sich bis zum Rand.','Something sharp scrapes behind the reels...':'Etwas Scharfes kratzt hinter den Walzen...',
+  '"Crowns. Watch for crowns."':'„Kronen. Achte auf Kronen.“','It took your relic and gave nothing back. Laughter.':'Es nahm dein Relikt und gab nichts zurück. Gelächter.',
+  'Close your ears. It will remember you said no.':'Verschließ die Ohren. Es wird sich merken, dass du nein gesagt hast.',
+  // banners and short labels
+  'DEVOURED':'VERSCHLUNGEN','GOLDEN SPIN':'GOLDENER SPIN','JACKPOT':'JACKPOT','JACKPOT!':'JACKPOT!','SECRET PATTERN':'GEHEIMES MUSTER','THE MAW IS FULL':'DER SCHLUND IST VOLL',
+  'ring the bell':'läute die Glocke','WAGER WON':'WETTE GEWONNEN','BIG WIN':'GROSSER GEWINN','HUGE WIN':'RIESIGER GEWINN','MONSTROUS WIN':'MONSTRÖSER GEWINN','IMPOSSIBLE':'UNMÖGLICH',
+  'THE ABYSS OPENS':'DER ABGRUND ÖFFNET SICH','DEBT PAID':'SCHULD BEGLICHEN','BOSS BROKEN':'BOSS GEBROCHEN','the machine empties its belly':'der Automat leert seinen Bauch',
+  'HOT STREAK':'HEISSE SERIE','ON FIRE':'IN FLAMMEN','POSSESSED':'BESESSEN','UNHOLY':'UNHEILIG','DOUBLE!':'DOPPELT!','TRIPLE!':'DREIFACH!','QUADRUPLE!':'VIERFACH!','QUINTUPLE!':'FÜNFFACH!','MAYHEM!':'CHAOS!',
+  'interest':'Zinsen','+1 FREE SPIN':'+1 FREISPIEL','Spun again':'Neu gedreht',
+  // canvas texts
+  'TOLLS':'ZÖLLE','DREAD':'GRAUEN','FEVER':'FIEBER','PURSE':'BEUTEL','OWED':'SCHULD','FED':'GEFÜTTERT','PULL THE LEVER':'HEBEL ZIEHEN','BUY A TOLL':'ZOLL KAUFEN','RING THE BELL':'GLOCKE LÄUTEN',
+  'FEED THE MAW':'SCHLUND FÜTTERN','RING THE BELL  OR  BUY A TOLL':'GLOCKE  ODER  ZOLL','JACKPOT READY':'JACKPOT BEREIT','REELS HELD':'WALZEN GEHALTEN','VOID':'UNGÜLTIG','FEVER  --':'FIEBER  --',
+  'KNOCK  AND  BARTER':'KLOPFEN  UND  FEILSCHEN','IT IS NEVER FULL':'ER WIRD NIE SATT','how many debts':'wie viele schulden','pay what you owe':'zahl, was du schuldest','EVERY  DEBT  IS  PAID':'JEDE  SCHULD  WIRD  BEZAHLT',
+  'WHAT THE MACHINE PAYS   ·   value   ·   chance':'WAS DER AUTOMAT ZAHLT   ·   Wert   ·   Chance','dread':'Grauen','wild':'Joker',
+  'TAKE IT':'NEHMEN','ACCEPT':'ANNEHMEN','REFUSE':'ABLEHNEN','NO ROOM':'KEIN PLATZ','SOLD':'VERKAUFT','TOO POOR':'ZU ARM','SHARPEN':'SCHÄRFEN','KEEP':'BEHALTEN','PERFORM THE RITE':'RITUS AUSFÜHREN','PERFORM LATER':'SPÄTER AUSFÜHREN',
+  'The Lodger':'Der Untermieter','A deal through the grate':'Ein Deal durchs Gitter','Walk away':'Geh weg','Refuse':'Ablehnen','Bargain':'Pakt','Rite · single use':'Ritus · einmalig',
+  'Worth more':'Mehr wert','Worth double':'Doppelt wert','More often':'Häufiger','Less often':'Seltener','Pattern':'Muster','Echo':'Echo','A risky trade':'Ein riskanter Handel','Luck':'Glück','Jackpot':'Jackpot',
+};
+const DE_RX=[
+  [/^(\d+) Omens\. The Hunger licks this spin clean\.$/,(m,a)=>`${a} Omen. Der Hunger leckt diesen Spin sauber.`],
+  [/^(.+) crumbles to dust\. \+([\d,]+) coins\.$/,(m,a,b)=>`${a} zerfällt zu Staub. +${b} Münzen.`],
+  [/^Coins drip from the ceiling\. \+([\d,]+)$/,(m,a)=>`Münzen tropfen von der Decke. +${a}`],
+  [/^Debt ([IVXLC]+) is a boss debt: (.+) Break it for a rare reward\.$/,(m,a,b)=>`Schuld ${a} ist eine Boss-Schuld: ${b} Brich sie für eine seltene Belohnung.`],
+  [/^That toll costs (\d+)\. Your purse holds (\d+)\.$/,(m,a,b)=>`Dieser Zoll kostet ${a}. Dein Beutel hält ${b}.`],
+  [/^The Lodger keeps your (\d+) coins\. Giggling\.$/,(m,a)=>`Der Untermieter behält deine ${a} Münzen. Kichern.`],
+  [/^The Maw is not full: (\d+) of (\d+)\.$/,(m,a,b)=>`Der Schlund ist nicht voll: ${a} von ${b}.`],
+  [/^The Skimmer takes ([\d,]+)\.$/,(m,a)=>`Der Abschöpfer nimmt ${a}.`],
+  [/^Toll (\d+) of (\d+): (\d+) spins\.$/,(m,a,b,c)=>`Zoll ${a} von ${b}: ${c} Spins.`],
+  [/^The Maw's hoard grew by (\d+)\.$/,(m,a)=>`Der Hort des Schlunds wuchs um ${a}.`],
+  [/^Your Dread overflows\. The Hunger takes (\d+) coins\.$/,(m,a)=>`Dein Grauen läuft über. Der Hunger nimmt ${a} Münzen.`],
+  [/^(\d+) Omens\. Your Dread grows\.$/,(m,a)=>`${a} Omen. Dein Grauen wächst.`],
+  [/^(.+) stacks: you now own ×(\d+)\.$/,(m,a,b)=>`${a} stapelt sich: du besitzt jetzt ×${b}.`],
+  [/^(.+) joins your shelf\.$/,(m,a)=>`${a} kommt auf dein Regal.`],[/^(.+) sits on the stool\.$/,(m,a)=>`${a} liegt jetzt auf dem Hocker.`],
+  [/^(.+)\. The dark remembers the deal\.$/,(m,a)=>`${a}. Das Dunkel merkt sich den Pakt.`],[/^(.+) is yours\.$/,(m,a)=>`${a} gehört dir.`],
+  [/^The machine shifts: (.+)\.$/,(m,a)=>`Der Automat verstellt sich: ${a}.`],
+  [/^The Maw swallows ([\d,]+)\.$/,(m,a)=>`Der Schlund verschlingt ${a}.`],[/^It spits back ([\d,]+)\.$/,(m,a)=>`Er spuckt ${a} zurück.`],
+  [/^Hourglass: \+(\d+)\.$/,(m,a)=>`Sanduhr: +${a}.`],[/^The Tick bursts: \+([\d,]+)\.$/,(m,a)=>`Die Zecke platzt: +${a}.`],[/^Tithe: \+(\d+)\.$/,(m,a)=>`Zehnt: +${a}.`],
+  [/^The broken boss leaves you (.+)\.$/,(m,a)=>`Der gebrochene Boss hinterlässt dir ${a}.`],
+  [/^You slide (\d+) coins through the grate\.$/,(m,a)=>`Du schiebst ${a} Münzen durchs Gitter.`],[/^Now win twice\.$/,()=>'Jetzt gewinn zweimal.'],
+  [/^Dread seeps in\.$/,()=>'Grauen sickert ein.'],[/^(\d+) extra spins\.$/,(m,a)=>`${a} zusätzliche Spins.`],
+  [/^(.+) is gone\.$/,(m,a)=>`${a} ist weg.`],[/^(.+) sits on your shelf\.$/,(m,a)=>`${a} steht auf deinem Regal.`],
+  [/^BOSS: (.+)$/,(m,a)=>`BOSS: ${a}`],[/^DEBT ([IVXLC]+)$/,(m,a)=>`SCHULD ${a}`],[/^DEBT ([IVXLC]+) of ([IVXLC]+)$/,(m,a,b)=>`SCHULD ${a} von ${b}`],
+  [/^([\d,]+) coins · three tolls$/,(m,a)=>`${a} Münzen · drei Zölle`],[/^\+([\d,]+) coins$/,(m,a)=>`+${a} Münzen`],[/^([\d,]+) coins$/,(m,a)=>`${a} Münzen`],
+  [/^([\d,]+) more or the ceiling falls$/,(m,a)=>`noch ${a}, oder die Decke fällt`],[/^every pattern pays x(\d)$/,(m,a)=>`jedes Muster zahlt x${a}`],
+  [/^(\d+) spins \+ offering$/,(m,a)=>`${a} Spins + Wahl`],[/^(\d+) spins$/,(m,a)=>`${a} Spins`],[/^LAST \+([\d,]+)$/,(m,a)=>`LETZTER +${a}`],[/^FEVER x([\d.]+)$/,(m,a)=>`FIEBER x${a}`],
+  [/^PULL · (\d) HOLDS?$/,(m,a)=>`ZIEHEN · ${a} HALT`],[/^SELL ONE · (\d+) coins$/,(m,a)=>`EINS VERKAUFEN · ${a}`],[/^SELL · (\d+) coins$/,(m,a)=>`VERKAUFEN · ${a}`],
+  [/^now worth ([\d,]+)$/,(m,a)=>`jetzt ${a} wert`],[/^you own ×(\d+)$/,(m,a)=>`du besitzt ×${a}`],[/^(Worn|Strange|Accursed) relic(.*)$/,(m,a,b)=>`${({Worn:'Abgenutztes',Strange:'Seltsames',Accursed:'Verfluchtes'})[a]} Relikt${b.replace(' · you own ×',' · du besitzt ×').replace(' · stacks',' · stapelbar')}`],
+  [/^Another copy stacks the effect\.$/,()=>'Eine weitere Kopie stapelt den Effekt.'],
+  [/^Fever x([\d.]+)$/,(m,a)=>`Fieber x${a}`],[/^Golden spin x(\d)$/,(m,a)=>`Goldener Spin x${a}`],[/^JACKPOT x(\d)$/,(m,a)=>`JACKPOT x${a}`],[/^Tick drinks (\d+)$/,(m,a)=>`Zecke trinkt ${a}`],
+];
+function trOne(s){ if(DE_STR[s]!==undefined) return DE_STR[s]; for(const [rx,f] of DE_RX){ const m=s.match(rx); if(m) return f(...m); } return null; }
+function tr(s){ if(LANG!=='de'||s==null||typeof s!=='string'||!s) return s; const one=trOne(s); if(one!==null) return one;
+  const parts=s.split(/(?<=[.!?”])\s+/); if(parts.length>1){ const t=parts.map(p=>trOne(p)??p); return t.join(' '); } return s; }
+function tuneTextDE(S,t){ const n=t.s?DE_SYM[t.s]:'', ns=t.s?DE_SYM_PL[t.s]:''; const G={h:'Reihen',v:'Spalten',d:'Diagonalen',f:'Fänge und Kämme'};
+  const en=tuneText(S,t);
+  switch(t.k){
+    case 'val': return {title:`${n} +${t.add}`,rar:'Mehr wert',body:en.body.replace(/^.* are worth/,`${ns} sind`).replace(/\.$/,' wert.')};
+    case 'mul': return {title:`${n} ×2`,rar:'Doppelt wert',body:`${ns} sind ${symValue(S,t.s)} → ${symValue(S,t.s)*2} wert.`};
+    case 'freq': return {title:`Mehr ${ns}`,rar:'Häufiger',body:`${ns} erscheinen ${Math.round((t.x-1)*100)}% öfter.`};
+    case 'rare': return {title:`Weniger ${ns}`,rar:'Seltener',body:`${ns} erscheinen ${Math.round((1-t.x)*100)}% seltener. Alles andere kommt öfter.`};
+    case 'omen': return {title:'Weniger Omen',rar:'Seltener',body:`Omen erscheinen ${Math.round((1-t.x)*100)}% seltener.`};
+    case 'pat': return {title:`${G[t.g]} +${t.add}`,rar:'Muster',body:`${G[t.g]} bekommen +${t.add} Multiplikator.`};
+    case 'echo': return {title:`Echo +${Math.round(t.add*100)}%`,rar:'Echo',body:'Symbole kopieren öfter ihren Nachbarn. Mehr Muster.'};
+    case 'trade': return {title:`${n} ×${String(t.x).replace('.',',')}, aber seltener`,rar:'Ein riskanter Handel',body:`${ns} sind ×${String(t.x).replace('.',',')} wert, erscheinen aber ${Math.round((1-t.fx)*100)}% seltener.`};
+    case 'gold': return {title:'Goldene Spins +'+Math.round(t.add*100)+'%',rar:'Glück',body:'Goldene Spins (jedes Muster zahlt doppelt) kommen öfter.'};
+    case 'jp': return {title:'Hungrigere Röhre',rar:'Jackpot',body:`Die Jackpot-Röhre füllt sich ${Math.round(t.add*100)}% schneller.`};
+  } }
+function tuneTextL(S,t){ return LANG==='de'?tuneTextDE(S,t):tuneText(S,t); }
+const _EN={};
+function applyLangData(){
+  const keep=(arr,key,fields)=>{ for(const o of arr){ const id=o[key]; _EN[key+id]=_EN[key+id]||fields.map(f=>o[f]); } };
+  keep(RELICS,'id',['n','d']); keep(RITES,'id',['n','d']); keep(BARGAINS,'id',['n','good','bad']); keep(BOSSES,'id',['n','d']); keep(EVENTS,'id',['n','d']); keep(DEALS,'id',['say']);
+  const de=LANG==='de';
+  for(const r of RELICS){ const t=DE_REL[r.id], e=_EN['id'+r.id]; [r.n,r.d]=de&&t?t:e; }
+  for(const r of RITES){ const t=DE_RITE[r.id], e=_EN['id'+r.id]; [r.n,r.d]=de&&t?t:e; }
+  for(const b of BARGAINS){ const t=DE_BARG[b.id], e=_EN['id'+b.id]; [b.n,b.good,b.bad]=de&&t?t:e; }
+  for(const b of BOSSES){ const t=DE_BOSS[b.id], e=_EN['id'+b.id]; [b.n,b.d]=de&&t?t:e; }
+  for(const v of EVENTS){ const t=DE_EVT[v.id], e=_EN['id'+v.id]; [v.n,v.d]=de&&t?t:e; }
+  for(const d of DEALS){ const e=_EN['id'+d.id]; d.say=de&&DE_DEAL[d.id]?DE_DEAL[d.id]:e[0]; }
+  for(const s of SYM_IDS){ _EN['sym'+s]=_EN['sym'+s]||SYM[s].n; SYM[s].n=de&&DE_SYM[s]?DE_SYM[s]:_EN['sym'+s]; }
+  for(const k in PAT){ _EN['pat'+k]=_EN['pat'+k]||PAT[k].n; PAT[k].n=de&&DE_PAT[k]?DE_PAT[k]:_EN['pat'+k]; }
+  if(!_EN.rar) _EN.rar=RARITY.slice(); for(let i=0;i<RARITY.length;i++) RARITY[i]=de?DE_RAR[i]:_EN.rar[i];
+}
+const DE_DOM=[
+  ['#title .sub','The ceiling remembers its weight.','Die Decke erinnert sich an ihr Gewicht.'],['#btnNew','Begin the descent','Den Abstieg beginnen'],['#btnContinue','Continue','Fortsetzen'],
+  ['#btnHow','How to survive','Wie man überlebt'],['#btnTrophies','Trophies','Trophäen'],['#btnHelp','Rules','Regeln'],['#btnMenu','Menu','Menü'],
+  ['#death h2','Pressed into the stone','In den Stein gepresst'],['#btnRetry','Descend again','Erneut hinabsteigen'],['#btnToTitle','Title','Titel'],
+  ['#ending h2','The ceiling halts','Die Decke hält inne'],['#btnLeave','Walk into the dark','Geh ins Dunkel'],['#btnStay','Stay (endless)','Bleib (endlos)'],
+  ['#tFeed','Hold: feed the Maw','Halten: Schlund füttern'],['#tBell','Ring bell','Glocke läuten'],['#tHatch','Hatch','Luke'],
+  ['#keys','Space pull · 1 seven spins · 2 three spins · hold F feed the Maw · B ring the bell · E hatch · T turbo · H rules','Leertaste ziehen · 1 sieben Spins · 2 drei Spins · F halten Schlund füttern · B Glocke · E Luke · T Turbo · H Regeln'],
+];
+const HELP_EN={}; const HELP_DE=`<h3>Wie man überlebt</h3>
+    <p class="flav">Du bist vor dem Automaten angekettet aufgewacht. Du erinnerst dich nicht, etwas zu schulden. Der Schlund erinnert sich für dich.</p>
+    <ul>
+      <li>Jede <b>Schuld</b> steht auf der Kreidetafel. Du hast <b>drei Zölle</b>, um sie zu bezahlen.</li>
+      <li>Ein Zoll ist ein Kauf auf dem Pult des Automaten: <b>VII</b> kauft 7 Spins, <b>III</b> kauft 3 günstigere Spins und lässt dich den <b>Automaten verstellen</b>.</li>
+      <li>Wenn du den Automaten verstellst, wählst du eine von drei Änderungen: ein Symbol mehr wert, häufiger oder seltener, Muster-Boni, weniger Omen, riskante Handel und mehr. Mit Münzen kannst du neu würfeln. Die Tafel unten am Automaten zeigt Wert und Chance jedes Symbols.</li>
+      <li>Zieh den <b>Hebel</b>. Gleiche Symbole in <b>Mustern</b> zahlen Münzen (Symbolwert × Muster-Multiplikator).</li>
+      <li><b>Halte den Schlund gedrückt</b> (oder F), um ihn zu füttern. Münzen im Schlund bringen bei jedem Zoll <b>Zinsen</b>. Ist er voll, <b>läute die Glocke</b>.</li>
+      <li>Sind deine Zölle verbraucht und der Schlund noch hungrig, kommt die Decke herunter.</li>
+      <li><b>Omen</b> füllen die Grauen-Röhre. Volles Grauen: Der Hunger frisst die Hälfte deines Beutels. Drei Omen: Der Spin ist ungültig. <b>Drei Omen in einer Linie: Der Schlund verschlingt alles, was du in diesem Zoll gewonnen hast.</b></li>
+      <li><b>Fieber</b> (rechte Röhre): Jeder Gewinn-Spin in Folge bringt +0,25× auf Auszahlungen. Eine Niete löscht es.</li>
+      <li>Drei oder mehr Muster in einem Spin geben ein <b>Freispiel</b> (bis zu vier pro Zoll). Ebenso Muster mit einer <b>Sanduhr</b>.</li>
+      <li>Nach einem Spin kannst du <b>Walzen halten</b>: Klick auf eine Walze, und sie bleibt beim nächsten Spin stehen. Ein Halt pro Zoll.</li>
+      <li>Jede dritte Schuld ist eine <b>Boss-Schuld</b> mit einer grausamen Regel. Brich sie für ein seltenes Relikt und eine volle Jackpot-Röhre.</li>
+      <li>Manchmal treffen <b>seltsame Ereignisse</b> einen Spin. Manchmal leuchten Augen hinter dem Gitter: Klick darauf, um den Deal der <b>Stimme in der Wand</b> zu hören.</li>
+      <li>Nach jeder beglichenen Schuld bekommst du eine stärkere Änderung. Relikte gibt es beim Hausierer (Luke rechts), von gebrochenen Bossen und von der Stimme in der Wand. Relikte <b>stapeln sich</b>.</li>
+      <li>Klick ein Relikt im Regal oder einen Ritus auf dem Hocker, um ihn anzusehen, zu verkaufen oder auszuführen. Mit H siehst du alle deine Relikte.</li>
+      <li>Manche Formen sind <b>geheim</b>. Finde sie selbst. <b>Trophäen</b> schalten neue Relikte frei.</li>
+      <li><b>Goldene Spins</b> kommen ab und zu: Jedes Muster zahlt doppelt. Die <b>Jackpot-Röhre</b> unter dem Bogen füllt sich mit jedem Spin.</li>
+    </ul>`;
+function applyLangDOM(){ const de=LANG==='de';
+  for(const [sel,en,dt] of DE_DOM){ const el=document.querySelector(sel); if(el) el.textContent=de?dt:en; }
+  const box=document.querySelector('#help .modalBox'); if(box){ const h3=box.querySelector('h3'), fl=box.querySelector('.flav'), ul=box.querySelector('ul');
+    if(!HELP_EN.h){ HELP_EN.h=h3.outerHTML+fl.outerHTML+ul.outerHTML; }
+    const wrap=document.createElement('div'); wrap.innerHTML=de?HELP_DE:HELP_EN.h; const [nh,nf,nu]=wrap.children; h3.replaceWith(nh); fl.replaceWith(nf); ul.replaceWith(nu); }
+  const ed=document.querySelectorAll('#ending p'); if(ed.length>=2){ if(!HELP_EN.e1){ HELP_EN.e1=ed[0].innerHTML; HELP_EN.e2=ed[1].innerHTML; }
+    ed[0].innerHTML=de?'Jede Schuld ist bezahlt. Der Schlund verstummt. Hinter dem Automaten knirscht Stein auf Stein, und kalte Luft, die nicht nach Wachs riecht, streift deinen Nacken.':HELP_EN.e1;
+    ed[1].innerHTML=de?'Eine Tür. Du könntest gehen.<br><i class="dimt">Oder weiterziehen. Er ist noch warm.</i>':HELP_EN.e2; }
+  const lb=document.getElementById('btnLang'); if(lb) lb.textContent=de?'English':'Deutsch';
+  const lt=document.getElementById('titleLang'); if(lt) lt.textContent=de?'Language: Deutsch · switch to English':'Language: English · auf Deutsch umstellen';
+}
+
 
 /* ---- extra relic icons ---- */
 Object.assign(DRAW,{
@@ -1597,9 +1812,9 @@ function bloodText(g,w,h,text,size){
   for(let i=0;i<text.length*2;i++){ const x=w/2-m.width/2+rnd()*m.width, y=h/2+size*.25, l=10+rnd()*size*1.2; g.fillStyle=`rgba(100,6,4,${.5+rnd()*.4})`; g.fillRect(x,y,1.5+rnd()*2.5,l); circ(g,x+1.5,y+l,2+rnd()*1.5); g.fill(); }
 }
 const decals=[];
-decals.push(()=>decal(1.9,.5,(g,w,h)=>bloodText(g,w,h,'IT IS NEVER FULL',110),-2.72,2.75,-2.97,0));
+decals.push(()=>decal(1.9,.5,(g,w,h)=>bloodText(g,w,h,tr('IT IS NEVER FULL'),110),-2.72,2.75,-2.97,0));
 decals.push(()=>decal(1.6,.9,(g,w,h)=>{ g.strokeStyle='rgba(200,190,170,.5)'; g.lineWidth=5; for(let k=0;k<7;k++){ for(let i=0;i<4;i++){ const x=40+k*130+i*22, y=60+rnd()*20; g.beginPath(); g.moveTo(x,y); g.lineTo(x+rnd()*8,y+300+rnd()*40); g.stroke(); } g.beginPath(); g.moveTo(30+k*130,250); g.lineTo(120+k*130,130); g.stroke(); }
-  g.font=`70px ${FELL}`; g.fillStyle='rgba(200,190,170,.4)'; g.fillText('how many debts',60,480); },3.58,2.6,1.6,-Math.PI/2));
+  g.font=`70px ${FELL}`; g.fillStyle='rgba(200,190,170,.4)'; g.fillText(tr('how many debts'),60,480); },3.58,2.6,1.6,-Math.PI/2));
 let decalMeshes=decals.map(f=>f());
 
 /* candles */
@@ -1646,28 +1861,29 @@ function panelCanvas(){ const [c,g]=mkCanvas(1024,300);
   g.strokeStyle='#b08a40'; g.lineWidth=5; rrect(g,16,16,992,268,14); g.stroke(); g.lineWidth=2; rrect(g,30,30,964,240,10); g.stroke();
   for(const sx of [-1,1]){ g.save(); g.translate(512+sx*330,150); g.scale(sx,1); g.strokeStyle='#8a6a30'; g.lineWidth=3; for(let k=0;k<4;k++){ g.beginPath(); g.arc(0,0,30+k*16,-1.2,1.2); g.stroke(); } g.restore(); }
   g.save(); g.translate(512,128); g.scale(1.25,1.25); DRAW.skull(g); g.restore();
-  g.font=`40px ${FELLSC}`; g.textAlign='center'; g.fillStyle='#c9a35a'; g.shadowColor='#000'; g.shadowBlur=6; g.fillText('EVERY  DEBT  IS  PAID',512,262);
+  g.font=`40px ${FELLSC}`; g.textAlign='center'; g.fillStyle='#c9a35a'; g.shadowColor='#000'; g.shadowBlur=6; g.fillText(tr('EVERY  DEBT  IS  PAID'),512,262);
   return c; }
 const panelTex=clampTex(panelCanvas());
-const panelMesh=M(new THREE.PlaneGeometry(2.3,.67),new THREE.MeshStandardMaterial({map:panelTex,roughness:.5,metalness:.2,envMap:envTex,envMapIntensity:.4,emissive:0xffffff,emissiveMap:panelTex,emissiveIntensity:.25}),0,.6,.505,machine,false);
+const panelMesh=M(new THREE.PlaneGeometry(2.3,.5),new THREE.MeshStandardMaterial({map:panelTex,roughness:.5,metalness:.2,envMap:envTex,envMapIntensity:.4,emissive:0xffffff,emissiveMap:panelTex,emissiveIntensity:.25}),0,.64,.505,machine,false);
 let payKey='';
-function paytableCanvas(){ const [c,g]=mkCanvas(1024,298);
-  g.fillStyle=lg(g,0,0,0,298,[[0,'#1a0806'],[1,'#0a0302']]); g.fillRect(0,0,1024,298);
-  g.strokeStyle='#b08a40'; g.lineWidth=4; rrect(g,8,8,1008,282,12); g.stroke();
-  g.font=`22px ${FELLSC}`; g.textAlign='center'; g.fillStyle='#c9a35a'; g.fillText('WHAT THE MACHINE PAYS   ·   value   ·   chance',512,32);
+function paytableCanvas(){ const [c,g]=mkCanvas(1024,224);
+  g.fillStyle=lg(g,0,0,0,224,[[0,'#1a0806'],[1,'#0a0302']]); g.fillRect(0,0,1024,224);
+  g.strokeStyle='#b08a40'; g.lineWidth=4; rrect(g,6,6,1012,212,12); g.stroke();
+  g.font=`22px ${FELLSC}`; g.textAlign='center'; g.fillStyle='#c9a35a'; g.fillText(tr('WHAT THE MACHINE PAYS   ·   value   ·   chance'),512,22);
   const syms=SYM_IDS.filter(x=>symWeight(S,x)>0); let tot=0; for(const x of syms) tot+=symWeight(S,x);
   const n=syms.length, perRow=Math.ceil(n/2), cw=980/perRow;
-  syms.forEach((x,i)=>{ const row=Math.floor(i/perRow), col=i%perRow; const x0=22+col*cw, y0=44+row*122;
-    g.fillStyle='rgba(255,220,160,.05)'; rrect(g,x0+2,y0,cw-6,114,10); g.fill();
-    g.drawImage(iconCanvas(x,96),x0+4,y0+9,90,90);
+  syms.forEach((x,i)=>{ const row=Math.floor(i/perRow), col=i%perRow; const x0=22+col*cw, y0=32+row*94;
+    g.fillStyle='rgba(255,220,160,.05)'; rrect(g,x0+2,y0,cw-6,88,10); g.fill();
+    g.drawImage(iconCanvas(x,96),x0+4,y0+6,76,76);
     const lvl=lv(S,x); g.textAlign='left';
-    g.font=`20px ${FELLSC}`; g.fillStyle='#d8c8a0'; g.fillText(SYM[x].n+(lvl>1?' '+roman(lvl):''),x0+98,y0+30);
-    g.font=`bold 38px Georgia`; g.fillStyle=x==='omen'?'#ff5a40':'#ffd070'; g.fillText(x==='omen'?'dread':x==='mask'?'wild':String(symValue(S,x)),x0+98,y0+70);
-    g.font=`22px Georgia`; g.fillStyle='#a8987a'; g.fillText((symWeight(S,x)/tot*100).toFixed(1)+'%',x0+98,y0+100); });
+    g.font=`18px ${FELLSC}`; g.fillStyle='#d8c8a0'; g.fillText(SYM[x].n+(lvl>1?' '+roman(lvl):''),x0+84,y0+24);
+    g.font=`bold 32px Georgia`; g.fillStyle=x==='omen'?'#ff5a40':'#ffd070'; g.fillText(x==='omen'?tr('dread'):x==='mask'?tr('wild'):String(symValue(S,x)),x0+84,y0+57);
+    g.font=`19px Georgia`; g.fillStyle='#a8987a'; g.fillText((symWeight(S,x)/tot*100).toFixed(1)+'%',x0+84,y0+80); });
   return c; }
 function updatePaytable(){ if(!S) return; const k=SYM_IDS.map(x=>x+':'+symValue(S,x)+':'+symWeight(S,x).toFixed(3)).join('|'); if(k===payKey) return; payKey=k; panelTex.image=paytableCanvas(); panelTex.needsUpdate=true; }
 // coin tray
-const tray=new THREE.Group(); tray.position.set(0,.24,.56); machine.add(tray);
+const tray=new THREE.Group(); tray.position.set(0,.24,.2); machine.add(tray); let trayOut=0, trayHold=0;
+M(new THREE.BoxGeometry(1.06,.2,.04),MAT.dark,0,.27,.503,machine,false);
 M(new THREE.BoxGeometry(1.0,.06,.34),MAT.brass,0,0,0,tray); M(new THREE.BoxGeometry(1.0,.14,.03),MAT.brass,0,.05,.16,tray); M(new THREE.BoxGeometry(.03,.14,.34),MAT.brass,-.5,.05,0,tray); M(new THREE.BoxGeometry(.03,.14,.34),MAT.brass,.5,.05,0,tray);
 const coinGeo=new THREE.CylinderGeometry(.035,.035,.008,18);
 const coinMat=new THREE.MeshStandardMaterial({color:0xe0b048,roughness:.25,metalness:1,envMap:envTex,envMapIntensity:1.6,emissive:0x1a0e00});
@@ -1675,7 +1891,7 @@ const trayCoins=[]; for(let i=0;i<50;i++){ const m=new THREE.Mesh(coinGeo,coinMa
 // purse counter on lower cabinet
 function counterCanvas(n){ const [c,g]=mkCanvas(512,128);
   g.fillStyle='#0c0806'; g.fillRect(0,0,512,128);
-  g.font=`34px ${FELLSC}`; g.fillStyle='#c9a35a'; g.textBaseline='middle'; g.fillText('PURSE',18,64);
+  g.font=`34px ${FELLSC}`; g.fillStyle='#c9a35a'; g.textBaseline='middle'; g.fillText(tr('PURSE'),18,64);
   const s=String(Math.max(0,Math.min(9999999,Math.round(n)))).padStart(7,'0');
   for(let i=0;i<7;i++){ const x=150+i*50; g.fillStyle=lg(g,0,10,0,118,[[0,'#3a3530'],[.15,'#f2ead8'],[.5,'#fffaf0'],[.85,'#e8dfca'],[1,'#3a3530']]); g.fillRect(x,12,44,104);
     g.fillStyle='#120c08'; g.font=`bold 64px Georgia`; g.textAlign='center'; g.fillText(s[i],x+22,68); g.textAlign='left';
@@ -1713,7 +1929,7 @@ function screenCanvas(lines){ const [c,g]=mkCanvas(1024,220);
 let screenCv=screenCanvas([]); const screenTex=clampTex(screenCv);
 const screenMat=new THREE.MeshBasicMaterial({map:screenTex,color:new THREE.Color(1.15,1.05,.95)});
 M(new THREE.PlaneGeometry(1.5,.32),screenMat,0,2.33,-.37,machine,false);
-function setScreen(lines){ const nc=screenCanvas(lines); screenCv.getContext('2d').drawImage(nc,0,0); screenTex.needsUpdate=true; }
+function setScreen(lines){ lines=lines.map(l=>{ const c=l.slice(); c[0]=tr(c[0]); return c; }); const nc=screenCanvas(lines); screenCv.getContext('2d').drawImage(nc,0,0); screenTex.needsUpdate=true; }
 // side columns + finials
 for(const sx of [-1,1]){
   const col=lathe([[0,0],[.1,0],[.1,.06],[.07,.1],[.06,.2],[.055,1.15],[.075,1.2],[.08,1.25],[.06,1.3],[0,1.3]],MAT.brassDark); col.position.set(sx*1.36,1.2,-.25); col.castShadow=true; machine.add(col);
@@ -1746,7 +1962,7 @@ const jpLiq=M(jpGeo,jpMat,-.64,0,0,jpGrp,false); jpLiq.scale.x=.001; let jpLevel
 const deck=new THREE.Group(); deck.position.set(0,1.19,.32); deck.rotation.x=.32; machine.add(deck);
 M(new THREE.BoxGeometry(2.55,.05,.46),MAT.ebony,0,0,0,deck);
 M(new THREE.BoxGeometry(2.6,.02,.02),MAT.brass,0,.03,.23,deck);
-function buttonCanvas(label,price,sub,on){ const [c,g]=mkCanvas(256,256);
+function buttonCanvas(label,price,sub,on){ price=tr(price); sub=tr(sub); const [c,g]=mkCanvas(256,256);
   g.fillStyle=rg(g,128,128,10,128,on?[[0,'#d02818'],[.7,'#6a0806'],[1,'#2a0202']]:[[0,'#4a3a34'],[1,'#1a1412']]); g.fillRect(0,0,256,256);
   g.textAlign='center'; g.textBaseline='middle'; g.fillStyle=on?'#ffe9c0':'#8a7a6a';
   g.font=`92px ${FELLSC}`; g.fillText(label,128,104); g.font=`34px ${FELLSC}`; g.fillText(price,128,176); if(sub){ g.font=`22px ${FELL}`; g.fillText(sub,128,212); }
@@ -1762,7 +1978,7 @@ function makeButton(x,n){
 const btn7=makeButton(-.62,7), btn3=makeButton(.62,3);
 function updateButton(b,on,cost,spins){ const key=on+'|'+cost+'|'+spins; if(b.key===key) return; b.key=key; const nc=buttonCanvas(b.n===7?'VII':'III',cost+' coins',(b.n===3?`${spins} spins + offering`:`${spins} spins`),on); b.cv.getContext('2d').drawImage(nc,0,0); b.tex.needsUpdate=true; b.mat.emissiveIntensity=on?.9:.15; }
 const lamps=[]; for(let i=0;i<3;i++){ const m=new THREE.MeshStandardMaterial({color:0x200806,emissive:0xffa040,emissiveIntensity:1,roughness:.3}); const l=M(new THREE.SphereGeometry(.045,16,10,0,TAU,0,Math.PI/2),m,(i-1)*.15,.025,-.02,deck,false); lamps.push(l); M(new THREE.TorusGeometry(.05,.01,8,20),MAT.brass,(i-1)*.15,.03,-.02,deck,false).rotation.x=Math.PI/2; }
-function engraved(text,w=256,h=64){ const [c,g]=mkCanvas(w,h); g.fillStyle=lg(g,0,0,0,h,BRASS); g.fillRect(0,0,w,h); g.strokeStyle='#2c1a06'; g.lineWidth=3; g.strokeRect(3,3,w-6,h-6); g.font=`${h*.55}px ${FELLSC}`; g.textAlign='center'; g.textBaseline='middle'; g.fillStyle='#2a1806'; g.fillText(text,w/2,h/2+2); return clampTex(c); }
+function engraved(text,w=256,h=64){ text=tr(text); const [c,g]=mkCanvas(w,h); g.fillStyle=lg(g,0,0,0,h,BRASS); g.fillRect(0,0,w,h); g.strokeStyle='#2c1a06'; g.lineWidth=3; g.strokeRect(3,3,w-6,h-6); g.font=`${h*.55}px ${FELLSC}`; g.textAlign='center'; g.textBaseline='middle'; g.fillStyle='#2a1806'; g.fillText(text,w/2,h/2+2); return clampTex(c); }
 const engr=[]; function plate(text,w,h,x,y,z,parent,rx=0){ const t=engraved(text); const m=M(new THREE.PlaneGeometry(w,h),new THREE.MeshStandardMaterial({map:t,metalness:.8,roughness:.35,envMap:envTex}),x,y,z,parent,false); m.rotation.x=rx; engr.push([m,text]); return m; }
 plate('TOLLS',.3,.075,0,.03,.12,deck,-Math.PI/2);
 plate('JACKPOT',.36,.07,0,2.79,.1,machine);
@@ -1873,16 +2089,16 @@ function chalk(g,text,x,y,size,align='left',col='rgba(235,232,220,.92)'){ g.font
 function drawBoard(){ const g=boardCv.getContext('2d'); const W=1024,H=720;
   g.fillStyle='#16201a'; g.fillRect(0,0,W,H);
   for(let i=0;i<60;i++){ g.fillStyle=`rgba(200,210,200,${rnd()*.05})`; g.beginPath(); g.ellipse(rnd()*W,rnd()*H,40+rnd()*160,10+rnd()*40,rnd()*3,0,TAU); g.fill(); }
-  if(!S){ chalk(g,'pay what you owe',W/2,H/2,70,'center'); boardTex.needsUpdate=true; return; }
+  if(!S){ chalk(g,tr('pay what you owe'),W/2,H/2,70,'center'); boardTex.needsUpdate=true; return; }
   const o=owed(S), f=S.paid;
-  chalk(g,`DEBT ${roman(S.debt)}`+(S.endless?'':` of ${roman(FINAL_DEBT)}`),50,110,78);
-  chalk(g,'OWED',50,230,58); chalk(g,String(o),W-60,230,84,'right');
-  chalk(g,'FED',50,340,58); chalk(g,String(f),W-60,340,84,'right',f>=o?'rgba(240,215,120,.95)':'rgba(235,232,220,.92)');
+  chalk(g,tr(`DEBT ${roman(S.debt)}`+(S.endless?'':` of ${roman(FINAL_DEBT)}`)),50,110,78);
+  chalk(g,tr('OWED'),50,230,58); chalk(g,String(o),W-60,230,84,'right');
+  chalk(g,tr('FED'),50,340,58); chalk(g,String(f),W-60,340,84,'right',f>=o?'rgba(240,215,120,.95)':'rgba(235,232,220,.92)');
   g.strokeStyle='rgba(230,230,220,.75)'; g.lineWidth=4; g.strokeRect(50,375,W-110,34); g.fillStyle='rgba(230,230,220,.55)'; g.fillRect(54,379,(W-118)*Math.min(1,f/o),26);
-  chalk(g,'TOLLS',50,500,58);
+  chalk(g,tr('TOLLS'),50,500,58);
   for(let i=0;i<ROUNDS;i++){ const x=360+i*120; g.strokeStyle='rgba(230,230,220,.85)'; g.lineWidth=5; g.strokeRect(x,445,80,72); if(i<S.round){ g.beginPath(); g.moveTo(x+10,455); g.lineTo(x+70,507); g.moveTo(x+70,455); g.lineTo(x+10,507); g.stroke(); } }
-  if(S.boss){ const b=BOSS_BY[S.boss]; chalk(g,(boss(S)?'BOSS: ':'BOSS (hooded): ')+b.n,W/2,578,46,'center','rgba(255,110,90,.95)'); }
-  const left=Math.max(0,o-f); chalk(g,left>0?`${left.toLocaleString('en')} more or the ceiling falls`:'ring the bell',W/2,668,42,'center',left>0?'rgba(235,150,140,.9)':'rgba(240,215,120,.95)');
+  if(S.boss){ const b=BOSS_BY[S.boss]; chalk(g,(boss(S)?'BOSS: ':(LANG==='de'?'BOSS (verhüllt): ':'BOSS (hooded): '))+b.n,W/2,578,46,'center','rgba(255,110,90,.95)'); }
+  const left=Math.max(0,o-f); chalk(g,tr(left>0?`${left.toLocaleString('en')} more or the ceiling falls`:'ring the bell'),W/2,668,42,'center',left>0?'rgba(235,150,140,.9)':'rgba(240,215,120,.95)');
   boardTex.needsUpdate=true; }
 
 /* ============================== RELIQUARY SHELF + RITE STOOL ============================== */
@@ -1914,7 +2130,7 @@ const peddlerEyes=[]; for(const sx of [-1,1]){ const e=add(new THREE.SphereGeome
 function hatchCanvas(){ const [c,g]=mkCanvas(512,400); g.drawImage(woodCanvas(512,400,[44,26,13]),0,0);
   g.fillStyle=lg(g,0,0,0,30,IRON); for(const y of [36,320]){ g.fillRect(0,y,512,40); for(let x=24;x<512;x+=60){ g.fillStyle='#8a807a'; circ(g,x,y+20,6); g.fill(); g.fillStyle=lg(g,0,0,0,30,IRON); } }
   g.strokeStyle='#0a0604'; g.lineWidth=10; g.strokeRect(5,5,502,390);
-  g.font=`32px ${FELLSC}`; g.textAlign='center'; g.fillStyle='rgba(215,195,150,.7)'; g.fillText('KNOCK  AND  BARTER',256,200); return c; }
+  g.font=`32px ${FELLSC}`; g.textAlign='center'; g.fillStyle='rgba(215,195,150,.7)'; g.fillText(tr('KNOCK  AND  BARTER'),256,200); return c; }
 const hatchDoor=add(new THREE.BoxGeometry(1.02,.8,.06),[MAT.wood,MAT.wood,MAT.wood,MAT.wood,new THREE.MeshStandardMaterial({map:clampTex(hatchCanvas()),roughness:.7}),MAT.wood],0,0,.04,hatch);
 const knocker=add(new THREE.TorusGeometry(.07,.015,10,24),MAT.brass,0,-.18,.1,hatchDoor);
 add(new THREE.SphereGeometry(.025,10,8),MAT.brass,0,-.11,.08,hatchDoor);
@@ -1955,6 +2171,7 @@ function cardCanvas(o){ const W=512,H=720; const [c,g]=mkCanvas(W,H);
   g.fillStyle=rg(g,W/2,H/2,H*.3,H*.75,[[0,'rgba(0,0,0,0)'],[1,'rgba(60,30,10,.55)']]); rrect(g,0,0,W,H,30); g.fill();
   const band=o.band; g.strokeStyle=band; g.lineWidth=14; rrect(g,16,16,W-32,H-32,22); g.stroke();
   g.drawImage(iconCanvas(o.icon,240),W/2-120,44);
+  o=Object.assign({},o,{title:tr(o.title),rar:tr(o.rar),body:tr(o.body),foot:tr(o.foot),dim:tr(o.dim)});
   g.textAlign='center'; g.fillStyle='#2a1a0c'; fitFont(g,o.title,54,FELLSC,W-70); g.fillText(o.title,W/2,340);
   g.font=`26px ${FELLSC}`; g.fillStyle=band; g.fillText(o.rar.toUpperCase(),W/2,380);
   let y=440; g.font=`31px ${FELL}`;
@@ -1965,11 +2182,11 @@ function cardCanvas(o){ const W=512,H=720; const [c,g]=mkCanvas(W,H);
   return c; }
 const TUNE_BAND={val:'#8a6a20',mul:'#a07a10',freq:'#3f6a3a',rare:'#6a3a20',omen:'#6a2a20',pat:'#4a4a62',echo:'#5a5a3a',trade:'#5a2a3a',gold:'#8a7020',jp:'#8a6a20'};
 function tuneIcon(t){ if(t.s) return t.s; return {omen:'omen',pat:'reel',echo:'web',gold:'glever',jp:'gauge'}[t.k]||'coin'; }
-function offerDef(o){ if(o.kind==='tune'){ const tx=tuneText(S,o.t); return {icon:tuneIcon(o.t),title:tx.title,rar:tx.rar,body:tx.body,band:TUNE_BAND[o.t.k]||'#6a5a3a'}; }
+function offerDef(o){ if(o.kind==='tune'){ const tx=tuneTextL(S,o.t); return {icon:tuneIcon(o.t),title:tx.title,rar:tx.rar,body:tx.body,band:TUNE_BAND[o.t.k]||'#6a5a3a'}; }
   if(o.kind==='relic'){ const r=RELIC_BY[o.id]; const n=S?cnt(S,o.id):0; return {icon:r.icon,title:r.n,rar:RARITY[r.r]+' relic'+(n?` · you own ×${n}`:' · stacks'),body:r.d+(n?' Another copy stacks the effect.':''),band:({1:'#6e6250',2:'#3f6a3a',3:'#8a1a12'})[r.r]}; }
   if(o.kind==='rite'){ const r=RITE_BY[o.id]; return {icon:r.icon,title:r.n,rar:'Rite · single use',body:r.d,band:'#2a4a6a'}; }
   const b=BARGAIN_BY[o.id]; return {icon:b.icon,title:b.n,rar:'Bargain',good:b.good,bad:b.bad,band:'#4a2a6a'}; }
-function cardTex(o,extra={}){ const d=Object.assign(offerDef(o),extra); const k=JSON.stringify([o.kind,o.id,extra,o.kind==='relic'&&S?cnt(S,o.id):0,o.kind==='tune'?tuneText(S,o.t):0]); if(cardCache[k]) return cardCache[k]; return cardCache[k]=clampTex(cardCanvas(d)); }
+function cardTex(o,extra={}){ const d=Object.assign(offerDef(o),extra); const k=JSON.stringify([LANG,o.kind,o.id,extra,o.kind==='relic'&&S?cnt(S,o.id):0,o.kind==='tune'?tuneTextL(S,o.t):0]); if(cardCache[k]) return cardCache[k]; return cardCache[k]=clampTex(cardCanvas(d)); }
 const offerCards=[]; for(let i=0;i<3;i++){ const mat=new THREE.MeshStandardMaterial({roughness:.7,emissive:0xffffff,emissiveIntensity:.45,side:THREE.DoubleSide}); const m=add(new THREE.PlaneGeometry(.62,.87),mat,0,-2,0,scene,false); m.visible=false; m.userData.mat=mat; offerCards.push(m); }
 let offerAnim=0;
 
@@ -2015,7 +2232,7 @@ for(let i=0;i<14;i++){ const b=new THREE.Mesh(new THREE.PlaneGeometry(.45,6),bea
 function fireworks(n=4,delay=0){ for(let q=0;q<n;q++) setTimeout(()=>{ const p=new THREE.Vector3((rnd()-.5)*3.6,2.4+rnd()*1.2,-1.4+rnd()*1.8); const col=WARM[Math.floor(rnd()*WARM.length)];
   emit(p,70,{color:col,speed:2.2,life:1.3,grav:2.2,drag:1.4,size:.05,k:2.6}); emit(p,25,{color:0xfff0c8,speed:.9,life:.5,grav:0,size:.08,k:3}); AU.noise(.25,.2,900,'bandpass',0,1,.002,250); },delay+q*240+rnd()*120); }
 let candleFlare=0, machineRattle=0;
-function geyser(t){ if(t<2) return; const n=t*t*10; for(let k=0;k<n;k++) setTimeout(()=>{ const m=new THREE.Mesh(coinGeo,coinMat); const p=tray.localToWorld(new THREE.Vector3((rnd()-.5)*.3,.12,0)); m.position.copy(p); scene.add(m);
+function geyser(t){ if(t<2) return; openTray(5); const n=t*t*10; for(let k=0;k<n;k++) setTimeout(()=>{ const m=new THREE.Mesh(coinGeo,coinMat); const p=tray.localToWorld(new THREE.Vector3((rnd()-.5)*.3,.12,0)); m.position.copy(p); scene.add(m);
     bursts.push({m,v:new THREE.Vector3((rnd()-.5)*1.4,3.5+rnd()*2.5+t*.4,.6+rnd()*1.2),spin:new THREE.Vector3(rnd()*14,rnd()*14,rnd()*14),life:2.8+rnd()}); if(k%3===0) AU.coin(); },k*18); }
 function natural(t){ candleFlare=Math.max(candleFlare,.4+t*.35); machineRattle=Math.max(machineRattle,.004*t*t);
   if(t>=2){ for(let k=0;k<t*2;k++) setTimeout(()=>emit(machine.localToWorld(new THREE.Vector3((rnd()-.5)*1.2,3.3,-.2)),6,{color:0x6a5a50,speed:.15,up:.6,life:2.4,grav:-.15,drag:.4,size:.12,k:.5,shrink:0}),k*90); }
@@ -2046,12 +2263,12 @@ function stats(){ return lsGet(STATS_KEY)||{runs:0,bestDebt:0,wins:0,bestSpin:0}
 function saveRun(){ if(S&&mode!=='dead') lsSet(SAVE_KEY,S); }
 const roman=n=>{ const m=[[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']]; let s=''; for(const [v,r] of m) while(n>=v){ s+=r; n-=v; } return s; };
 let capTimer=null;
-function say(text,cls='',ms=3000){ const m=$('caption'); m.textContent=text; m.className='show '+cls; clearTimeout(capTimer); if(ms) capTimer=setTimeout(()=>m.className=cls,ms); }
-function floatText(world,text,cls='',sub=''){ const v=world.clone().project(camera); const x=(v.x*.5+.5)*innerWidth, y=(-v.y*.5+.5)*innerHeight; const d=document.createElement('div'); d.className='float '+cls; d.innerHTML=text+(sub?`<small>${sub}</small>`:''); d.style.left=x+'px'; d.style.top=y+'px'; $('floaters').appendChild(d); setTimeout(()=>d.remove(),1600); }
+function say(text,cls='',ms=3000){ const m=$('caption'); m.textContent=tr(text); m.className='show '+cls; clearTimeout(capTimer); if(ms) capTimer=setTimeout(()=>m.className=cls,ms); }
+function floatText(world,text,cls='',sub=''){ text=/^[^<]/.test(text)?tr(text):text.replace(/>([^<]+)</g,(m,a)=>'>'+tr(a)+'<'); sub=tr(sub); const v=world.clone().project(camera); const x=(v.x*.5+.5)*innerWidth, y=(-v.y*.5+.5)*innerHeight; const d=document.createElement('div'); d.className='float '+cls; d.innerHTML=text+(sub?`<small>${sub}</small>`:''); d.style.left=x+'px'; d.style.top=y+'px'; $('floaters').appendChild(d); setTimeout(()=>d.remove(),1600); }
 let flashV=0, flashCol=new THREE.Color(.6,0,0);
 function flash(hex='#8a0000',op=.55){ flashCol.set(hex); flashV=op; if(!composer){ const f=$('flash'); f.style.background=hex; f.style.opacity=op; setTimeout(()=>f.style.opacity=0,120); } }
 let bannerTimer=null;
-function banner(t,sub='',bad=false){ const b=$('banner'); b.querySelector('.t').textContent=t; b.querySelector('.s').textContent=sub; b.className=''; void b.offsetWidth; b.className='show'+(bad?' bad':''); clearTimeout(bannerTimer); bannerTimer=setTimeout(()=>b.className='',2500); }
+function banner(t,sub='',bad=false){ const b=$('banner'); b.querySelector('.t').textContent=tr(t); b.querySelector('.s').textContent=tr(sub); b.className=''; void b.offsetWidth; b.className='show'+(bad?' bad':''); clearTimeout(bannerTimer); bannerTimer=setTimeout(()=>b.className='',2500); }
 function bar(html){ const b=$('bar'); if(!html){ b.classList.add('hidden'); b.innerHTML=''; return; } b.innerHTML=html; b.classList.remove('hidden'); }
 
 /* diegetic refresh */
@@ -2083,7 +2300,8 @@ const pileSpots=[]; (()=>{ const o=new THREE.Object3D(); for(let i=0;i<PILE_N;i+
 pile.position.set(0,0,0);
 let pileShown=0;
 function updatePile(){ const want=S?Math.min(PILE_N,Math.floor(Math.log10(Math.max(1,S.pocket))*Math.log10(Math.max(1,S.pocket))*14)):0; pileShown=want; }
-function coinRiver(fromWorld,n,delay=0){ for(let k=0;k<n;k++) setTimeout(()=>{ const m=new THREE.Mesh(coinGeo,coinMat); m.position.copy(fromWorld); scene.add(m);
+function openTray(t=3.5){ trayHold=Math.max(trayHold,t); }
+function coinRiver(fromWorld,n,delay=0){ openTray(); for(let k=0;k<n;k++) setTimeout(()=>{ const m=new THREE.Mesh(coinGeo,coinMat); m.position.copy(fromWorld); scene.add(m);
     const to=tray.localToWorld(new THREE.Vector3((rnd()-.5)*.7,.07,(rnd()-.5)*.2));
     flyers.push({m,from:fromWorld.clone().add(new THREE.Vector3((rnd()-.5)*.1,(rnd()-.5)*.1,.05)),to,t:0,dur:.45+rnd()*.25,spin:6+rnd()*10,arc:.35+rnd()*.3,land:true}); },delay+k*35); }
 
@@ -2119,7 +2337,7 @@ shopCards.forEach((c,i)=>ix(c,{when:()=>mode==='shop',tip:()=>{ const o=S.shop[i
 offerCards.forEach((c,i)=>ix(c,{when:()=>mode==='offers'||mode==='level'||mode==='deal',tip:()=>{ if(mode==='deal') return i?'<h4>Refuse</h4>Walk away.':`<h4>The Lodger's deal</h4>${DEAL_BY[dealId].say}`; if(mode==='level'){ const s=S.levels[i]; return `<h4>${SYM[s].n}: level ${lv(S,s)} → ${lv(S,s)+(has(S,'oil')?2:1)}</h4>Worth ${symValue(S,s)} → ${symValue(S,s)*(has(S,'oil')?4:2)}`; } const o=S.offers[i]; const d=offerDef(o); return `<h4>${d.title}</h4>${d.good?('+ '+d.good+'<br>− '+d.bad):d.body}`; },click:()=>mode==='deal'?dealChoice(i):mode==='level'?takeLevel(i):takeOffer(i),hover:true}));
 /* inspect: a relic or rite held up to the eye, with in-world choices */
 const inspectCard=new THREE.Mesh(new THREE.PlaneGeometry(.62,.87),new THREE.MeshBasicMaterial({transparent:true,depthTest:false,depthWrite:false})); inspectCard.renderOrder=20; inspectCard.visible=false; scene.add(inspectCard);
-function choiceCanvas(text,col){ const [c,g]=mkCanvas(512,160); g.fillStyle=rg(g,256,80,10,260,[[0,col],[1,'#1a0604']]); rrect(g,6,6,500,148,40); g.fill(); g.strokeStyle='#e8c070'; g.lineWidth=6; rrect(g,10,10,492,140,36); g.stroke();
+function choiceCanvas(text,col){ text=tr(text); const [c,g]=mkCanvas(512,160); g.fillStyle=rg(g,256,80,10,260,[[0,col],[1,'#1a0604']]); rrect(g,6,6,500,148,40); g.fill(); g.strokeStyle='#e8c070'; g.lineWidth=6; rrect(g,10,10,492,140,36); g.stroke();
   g.fillStyle='#fff0d0'; g.textAlign='center'; g.textBaseline='middle'; fitFont(g,text,58,FELLSC,450); g.fillText(text,256,84); return clampTex(c); }
 const inspectBtns=[0,1].map(()=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(.3,.094),new THREE.MeshBasicMaterial({transparent:true,depthTest:false,depthWrite:false})); m.renderOrder=21; m.visible=false; scene.add(m); return m; });
 let inspectSel=null, preInspect='play';
@@ -2150,17 +2368,18 @@ function applyLocks(){ LOCKED=new Set(TROPHIES.filter(t=>!META.ach[t[0]]).map(t=
 applyLocks();
 let toastQ=[], toastBusy=false;
 function trophy(id){ if(META.ach[id]) return; const t=TROPHIES.find(x=>x[0]===id); if(!t) return; META.ach[id]=true; saveMeta(); applyLocks();
-  const name=t[1]==='???'?'Hidden Pattern: '+PAT[id.replace('secret_','')].n:t[1]; toastQ.push(`<div class="tt sc">Trophy</div><div class="tn">${name}</div><div class="tu">Unlocked relic: <b>${RELIC_BY[t[3]].n}</b></div>`); nextToast(); }
+  const de=LANG==='de'; const tn=de&&DE_TROPHY[id]?DE_TROPHY[id][0]:t[1]; const name=tn==='???'?(de?'Verstecktes Muster: ':'Hidden Pattern: ')+PAT[id.replace('secret_','')].n:tn; toastQ.push(`<div class="tt sc">${de?'Trophäe':'Trophy'}</div><div class="tn">${name}</div><div class="tu">${LANG==='de'?'Freigeschaltetes Relikt':'Unlocked relic'}: <b>${RELIC_BY[t[3]].n}</b></div>`); nextToast(); }
 function nextToast(){ if(toastBusy||!toastQ.length) return; toastBusy=true; const el=$('toast'); el.innerHTML=toastQ.shift(); el.className='show'; AU.choir(2); AU.tone(784,.5,'triangle',.08,0,.1); AU.tone(1175,.6,'triangle',.07,0,.25);
   setTimeout(()=>{ el.className=''; setTimeout(()=>{ toastBusy=false; nextToast(); },500); },3200); }
 function trophyChecks(){ if(!S) return; if(S.debt>=5) trophy('debt5'); if(uniqueRelics(S).some(id=>cnt(S,id)>=3)) trophy('stack3'); if(uniqueRelics(S).length>=7) trophy('shelf7'); }
-function openTrophies(){ const box=$('trophyList'); box.innerHTML=TROPHIES.map(t=>{ const got=META.ach[t[0]]; const nm=t[1]==='???'?(got?'Hidden Pattern: '+PAT[t[0].replace('secret_','')].n:'???'):t[1];
-    return `<div class="trow ${got?'got':''}"><img src="${iconURL(RELIC_BY[t[3]].icon)}"><div><div class="sc">${nm}</div><div class="dimt" style="font-size:14px">${t[2]}</div><div style="font-size:13px">${got?'Unlocked':'Locked'}: ${got?RELIC_BY[t[3]].n:'a relic'}</div></div></div>`; }).join('');
+function openTrophies(){ const de=LANG==='de'; $('trophies').querySelector('h3').firstChild.textContent=de?'Trophäen ':'Trophies '; $('trophies').querySelector('.flav').textContent=de?'Jede Trophäe schaltet ein neues Relikt für künftige Abstiege frei.':'Every trophy unlocks a new relic for future descents.'; box.innerHTML=TROPHIES.map(t0=>{ const t=de&&DE_TROPHY[t0[0]]?[t0[0],DE_TROPHY[t0[0]][0],DE_TROPHY[t0[0]][1],t0[3]]:t0; const got=META.ach[t[0]]; const nm=t[1]==='???'?(got?(de?'Verstecktes Muster: ':'Hidden Pattern: ')+PAT[t[0].replace('secret_','')].n:'???'):t[1];
+    return `<div class="trow ${got?'got':''}"><img src="${iconURL(RELIC_BY[t[3]].icon)}"><div><div class="sc">${nm}</div><div class="dimt" style="font-size:14px">${t[2]}</div><div style="font-size:13px">${got?(de?'Freigeschaltet':'Unlocked'):(de?'Gesperrt':'Locked')}: ${got?RELIC_BY[t[3]].n:(de?'ein Relikt':'a relic')}</div></div></div>`; }).join('');
   $('trophyCount').textContent=`${Object.keys(META.ach).length} / ${TROPHIES.length}`; $('trophies').classList.remove('hidden'); }
 ix(panelMesh,{when:()=>!!S&&mode!=='title',tip:()=>{ const rows=Object.entries(PAT).filter(([k,p])=>!p.secret||META.found[k==='fall'?'stairs':k]).map(([k,p])=>`${p.n}: ×${patMult(S,k)}`).join('<br>'); return `<h4>What the machine pays</h4>Pattern pays value × multiplier.<br><span class="dimt">${rows}</span><br>Echo: ${Math.round(echoChance(S)*100)}%`; }});
 /* tooltip + pointer */
 let hovered=null, holding=null;
-function showTip(o,e){ const t=$('tooltip'); if(!o||!o.tip||isTouch){ t.classList.add('hidden'); return; } t.innerHTML=o.tip(); t.classList.remove('hidden'); const w=t.offsetWidth,h=t.offsetHeight; t.style.left=clamp(e.clientX+16,6,innerWidth-w-6)+'px'; t.style.top=clamp(e.clientY-h-14,6,innerHeight-h-6)+'px'; }
+function trHTML(h){ if(LANG!=='de') return h; return h.replace(/>([^<]+)</g,(m,a)=>'>'+tr(a.trim()?a:a)+'<').replace(/^([^<]+)/,(m,a)=>tr(a)); }
+function showTip(o,e){ const t=$('tooltip'); if(!o||!o.tip||isTouch){ t.classList.add('hidden'); return; } t.innerHTML=trHTML(o.tip()); t.classList.remove('hidden'); const w=t.offsetWidth,h=t.offsetHeight; t.style.left=clamp(e.clientX+16,6,innerWidth-w-6)+'px'; t.style.top=clamp(e.clientY-h-14,6,innerHeight-h-6)+'px'; }
 function onMove(e){ if(e.pointerType==='mouse'){ mouseX=e.clientX/innerWidth*2-1; mouseY=e.clientY/innerHeight*2-1; }
   if(e.target!==canvas){ hovered=null; $('tooltip').classList.add('hidden'); canvas.classList.remove('pointer'); return; }
   hovered=pick(e.clientX,e.clientY); canvas.classList.toggle('pointer',!!hovered&&!!(hovered.click||hovered.down)); showTip(hovered,e); }
@@ -2187,7 +2406,7 @@ function showOffers(after){
   S.offers.forEach((o,i)=>{ const c=offerCards[i]; const full=(o.kind==='relic'&&!canAddRelic(S,o.id))||(o.kind==='rite'&&S.rites.length>=MAX_RITES);
     c.userData.mat.map=cardTex(o,full?{dim:'NO ROOM'}:{foot:'TAKE IT'}); c.userData.mat.emissiveMap=c.userData.mat.map; c.userData.mat.needsUpdate=true; c.userData.full=full; c.visible=true; c.userData.i=i; });
   for(let i=S.offers.length;i<3;i++) offerCards[i].visible=false;
-  bar('<button id="refuseBtn">Change nothing <span class="gold">(+5 coins)</span></button>'); $('refuseBtn').onclick=()=>finishOffers(true);
+  renderOfferBar();
   say(S.offers[0]&&S.offers[0].kind==='tune'?'The machine lets you adjust it. Choose one change.':'The dark leaves three offerings at your feet. Take one.','',3500); saveRun(); refresh(); }
 let offerAfter=null;
 function levelCardTex(s){ const cur=lv(S,s), add=has(S,'oil')?2:1, col=LV_COL[Math.min(6,cur+add)]||'#c8d0d8';
@@ -2201,10 +2420,18 @@ function takeLevel(i){ const s=S.levels[i]; if(!s) return; levelUp(S,s); setTime
 function takeOffer(i){ const o=S.offers[i]; if(!o||offerCards[i].userData.full) return; if(!takeOffering(S,o)) return; AU.buy(); flash(o.kind==='bargain'?'#3a0a40':'#3a2a08',.3);
   if(o.kind==='tune'){ say('The machine shifts: '+offerDef(o).title+'.','good',2600); AU.grind(.6); payKey=''; for(let r=0;r<3;r++) for(let c=0;c<5;c++) emit(cellWorld(r,c),3,{color:0xffd080,speed:.6,life:.6,grav:1,size:.03,k:2.4}); }
   else say(o.kind==='bargain'?BARGAIN_BY[o.id].n+'. The dark remembers the deal.':offerDef(o).title+' is yours.',o.kind==='bargain'?'bad':'good',2600); finishOffers(false); }
-function finishOffers(refused){ if(refused){ S.pocket+=5; AU.coin(); } S.offers=[]; offerCards.forEach(c=>c.visible=false); bar(null); mode='play'; setView('center'); refresh(); saveRun(); const a=offerAfter; offerAfter=null; if(a) setTimeout(a,400); }
+function tuneRerollCost(){ return Math.max(2,Math.round(3*Math.pow(1.6,S.debt-1)*Math.pow(2,S.tuneRerolls||0))); }
+function renderOfferBar(){ const de=LANG==='de'; const isTune=S.offers[0]&&S.offers[0].kind==='tune'; const c=isTune?tuneRerollCost():0;
+  bar(`<button id="refuseBtn">${de?'Nichts ändern':'Change nothing'} <span class="gold">(+5 ${de?'Münzen':'coins'})</span></button>`+(isTune?`<button id="rerollTune" ${S.pocket<c?'disabled':''}>${de?'Neu würfeln':'Reroll'} <span class="gold">(${c} ${de?'Münzen':'coins'})</span></button>`:''));
+  $('refuseBtn').onclick=()=>finishOffers(true); if(isTune) $('rerollTune').onclick=rerollTunes; }
+function rerollTunes(){ if(mode!=='offers') return; const c=tuneRerollCost(); if(S.pocket<c){ AU.click(); return; } S.pocket-=c; S.tuneRerolls=(S.tuneRerolls||0)+1; const strong=!!S.offers[0].strong;
+  S.offers=genTunings(S,rnd,strong); S.offers.forEach(o=>o.strong=strong); AU.grind(.5); AU.coin(); AU.coin(.06); shake=.08;
+  offerAnim=.3; S.offers.forEach((o,i)=>{ const cc=offerCards[i]; cc.userData.mat.map=cardTex(o,{foot:'TAKE IT'}); cc.userData.mat.emissiveMap=cc.userData.mat.map; cc.userData.mat.needsUpdate=true; cc.visible=true; cc.userData.full=false; emit(cc.position,14,{color:0xffd080,speed:.8,life:.5,grav:1,size:.03,k:2.5}); });
+  renderOfferBar(); refresh(); saveRun(); }
+function finishOffers(refused){ S.tuneRerolls=0; if(refused){ S.pocket+=5; AU.coin(); } S.offers=[]; offerCards.forEach(c=>c.visible=false); bar(null); mode='play'; setView('center'); refresh(); saveRun(); const a=offerAfter; offerAfter=null; if(a) setTimeout(a,400); }
 
 /* shop */
-function enterShop(){ if(!S||busy||(mode!=='play')) return; if(S.spins>0){ say('Not while the reels still owe you spins.','',2000); return; } mode='shop'; updateTouchBar(); setView('hatch'); doorTarget=1; AU.hatch(); renderShop(); bar('<button id="leaveBtn">Close the hatch <kbd>Esc</kbd></button>'); $('leaveBtn').onclick=exitShop; say('Something with too many fingers lays its wares on the ledge.','',3000); refresh(); }
+function enterShop(){ if(!S||busy||(mode!=='play')) return; if(S.spins>0){ say('Not while the reels still owe you spins.','',2000); return; } mode='shop'; updateTouchBar(); setView('hatch'); doorTarget=1; AU.hatch(); renderShop(); bar(`<button id="leaveBtn">${LANG==='de'?'Luke schließen':'Close the hatch'} <kbd>Esc</kbd></button>`); $('leaveBtn').onclick=exitShop; say('Something with too many fingers lays its wares on the ledge.','',3000); refresh(); }
 function exitShop(){ if(mode!=='shop') return; mode='play'; doorTarget=0; setView('center'); bar(null); $('tooltip').classList.add('hidden'); refresh(); saveRun(); afterSpinCheck(); }
 function renderShop(){ S.shop.forEach((o,i)=>{ const c=shopCards[i]; if(!c) return; const def=o.kind==='relic'?RELIC_BY[o.id]:RITE_BY[o.id]; const price=o.kind==='relic'?relicPrice(S,def):ritePrice(S,def);
     const full=o.kind==='relic'?!canAddRelic(S,o.id):S.rites.length>=MAX_RITES;
@@ -2249,13 +2476,13 @@ const flyers=[];
 function spawnFlyingCoin(delay){ setTimeout(()=>{ const m=new THREE.Mesh(coinGeo,coinMat); const from=tray.localToWorld(new THREE.Vector3((rnd()-.5)*.6,.08,0)); m.position.copy(from); scene.add(m);
   flyers.push({m,from,to:MAW_MOUTH.clone().add(new THREE.Vector3((rnd()-.5)*.2,(rnd()-.5)*.12,0)),t:0,dur:.6+rnd()*.2,spin:rnd()*10}); },delay); }
 const bursts=[];
-function coinBurst(n){ for(let i=0;i<n;i++){ const m=new THREE.Mesh(coinGeo,coinMat); const p=tray.localToWorld(new THREE.Vector3((rnd()-.5)*.6,.1,0)); m.position.copy(p); scene.add(m);
+function coinBurst(n){ openTray(); for(let i=0;i<n;i++){ const m=new THREE.Mesh(coinGeo,coinMat); const p=tray.localToWorld(new THREE.Vector3((rnd()-.5)*.6,.1,0)); m.position.copy(p); scene.add(m);
   bursts.push({m,v:new THREE.Vector3((rnd()-.5)*2.2,2+rnd()*2.5,.8+rnd()*1.6),spin:new THREE.Vector3(rnd()*12,rnd()*12,rnd()*12),life:2.2+rnd()}); } }
 
 /* celebrations */
 let bloomBoost=0, countTimer=null;
 function countBanner(title,total,bad=false){ banner(title,'+0',bad); clearInterval(countTimer); let t0=performance.now(), dur=Math.min(1600,500+Math.log10(total+1)*350), k=0;
-  countTimer=setInterval(()=>{ const p=Math.min(1,(performance.now()-t0)/dur); const v=Math.round(total*(1-Math.pow(1-p,3))); $('banner').querySelector('.s').textContent='+'+v.toLocaleString('en')+' coins'; AU.tick(k++%30); if(p>=1) clearInterval(countTimer); },45); }
+  countTimer=setInterval(()=>{ const p=Math.min(1,(performance.now()-t0)/dur); const v=Math.round(total*(1-Math.pow(1-p,3))); $('banner').querySelector('.s').textContent='+'+v.toLocaleString(LANG==='de'?'de':'en')+(LANG==='de'?' Münzen':' coins'); AU.tick(k++%30); if(p>=1) clearInterval(countTimer); },45); }
 function coinRain(n){ for(let i=0;i<n;i++){ const m=new THREE.Mesh(coinGeo,coinMat); m.position.set((rnd()-.5)*5.5,crusherY-.6-rnd()*.6,-2.4+rnd()*4.5); scene.add(m);
   bursts.push({m,v:new THREE.Vector3((rnd()-.5)*.4,-rnd()*1.5,(rnd()-.5)*.4),spin:new THREE.Vector3(rnd()*14,rnd()*14,rnd()*14),life:3+rnd()*1.5}); } }
 const TIERS=[[4,'IMPOSSIBLE',5],[1.5,'MONSTROUS WIN',4],[.6,'HUGE WIN',3],[.25,'BIG WIN',2]];
@@ -2291,7 +2518,7 @@ let dealId=null;
 function dealCardTex(id){ const d=DEAL_BY[id]; return clampTex(cardCanvas({icon:'lodgerkey',title:'The Lodger',rar:'A deal through the grate',body:d.say+(dealPower(S)>1?' (Your contract sweetens it.)':''),band:'#3a6a2a',foot:'ACCEPT'})); }
 function refuseCardTex(){ return clampTex(cardCanvas({icon:'hood',title:'Walk away',rar:'Refuse',body:'Close your ears. It will remember you said no.',band:'#4a3a2a',foot:'REFUSE'})); }
 function showDeal(id){ dealId=id; mode='deal'; updateTouchBar(); setView('offers'); offerAnim=0; voiceOn=1; AU.voice(8);
-  say(VOICE_HELLO[Math.floor(rnd()*VOICE_HELLO.length)]+' '+DEAL_BY[id].say,'voice',0);
+  { const HH=LANG==='de'?HELLO_DE:VOICE_HELLO; say(HH[Math.floor(rnd()*HH.length)]+' '+DEAL_BY[id].say,'voice',0); }
   const tex=[dealCardTex(id),refuseCardTex()]; offerCards.forEach((c,i)=>{ if(i<2){ c.userData.mat.map=tex[i]; c.userData.mat.emissiveMap=tex[i]; c.userData.mat.needsUpdate=true; c.userData.full=false; c.visible=true; } else c.visible=false; }); }
 function dealChoice(i){ const id=dealId; offerCards.forEach(c=>c.visible=false); mode='play'; setView('center'); voiceOn=0; dealId=null;
   if(i===1){ AU.voice(3); say('"Suit yourself. I will be here. I am always here."','voice',2600); refresh(); afterSpinCheck(); return; }
@@ -2330,7 +2557,7 @@ const MAW_LINES={
   omen:['Did you see that?','They are watching you too.','Bad luck has a smell.'],
 };
 let mawTalkCD=0, idleT=0;
-function mawSay(kind,force=false){ if(!force&&(mawTalkCD>0||rnd()>.45)) return; const L=MAW_LINES[kind]; mawTalkCD=9+rnd()*8; mawPulse=Math.max(mawPulse,1.6); AU.tone(70,.6,'sawtooth',.09,52); AU.voice(4);
+function mawSay(kind,force=false){ if(!force&&(mawTalkCD>0||rnd()>.45)) return; const L=(LANG==='de'?MAW_DE:MAW_LINES)[kind]; mawTalkCD=9+rnd()*8; mawPulse=Math.max(mawPulse,1.6); AU.tone(70,.6,'sawtooth',.09,52); AU.voice(4);
   say('“'+L[Math.floor(rnd()*L.length)]+'”','maw',2600); }
 // rare jumpscare
 async function jumpscare(){ const prev=view; setView('scare'); AU.noise(.6,.9,2500,'bandpass',0,1,.002,600); AU.tone(110,.8,'sawtooth',.25,55); AU.tone(117,.8,'sawtooth',.2,58); AU.tone(1600,.4,'square',.06,900);
@@ -2507,8 +2734,9 @@ async function die(){
   AU.crunch(); AU.boom(); flash('#c00000',1); shake=2.2; camRoll=.55; camDrop=.9; bloomBoost=1.5;
   showGore(); await sleep(1700);
   AU.flatline(); $('blackout').style.transition='opacity 1.6s'; $('blackout').style.opacity=1; await sleep(2200);
+  if(LANG==='de'){ $('deathText').innerHTML=`Du hast <b>${S.debt-1}</b> Schuld${S.debt-1===1?'':'en'} beglichen. Der Schlund wollte <b>${owed(S).toLocaleString('de')}</b>. Er hatte <b>${S.paid.toLocaleString('de')}</b>, dein Beutel <b>${S.pocket.toLocaleString('de')}</b>.`; $('deathStats').innerHTML=`Spins: ${S.stats.spins} · Gewonnen: ${S.stats.earned.toLocaleString('de')} · Bester Spin: ${S.stats.best.toLocaleString('de')}<br>Relikte: ${uniqueRelics(S).map(id=>RELIC_BY[id].n+(cnt(S,id)>1?' ×'+cnt(S,id):'')).join(', ')||'keine'}`; } else {
   $('deathText').innerHTML=`You settled <b>${S.debt-1}</b> debt${S.debt-1===1?'':'s'}. The Maw wanted <b>${owed(S).toLocaleString('en')}</b>. It had <b>${S.paid.toLocaleString('en')}</b>, your purse <b>${S.pocket.toLocaleString('en')}</b>.`;
-  $('deathStats').innerHTML=`Spins: ${S.stats.spins} · Coins won: ${S.stats.earned.toLocaleString('en')} · Best spin: ${S.stats.best.toLocaleString('en')}<br>Relics: ${uniqueRelics(S).map(id=>RELIC_BY[id].n+(cnt(S,id)>1?' ×'+cnt(S,id):'')).join(', ')||'none'}`;
+  $('deathStats').innerHTML=`Spins: ${S.stats.spins} · Coins won: ${S.stats.earned.toLocaleString('en')} · Best spin: ${S.stats.best.toLocaleString('en')}<br>Relics: ${uniqueRelics(S).map(id=>RELIC_BY[id].n+(cnt(S,id)>1?' ×'+cnt(S,id):'')).join(', ')||'none'}`; }
   hideGore(); showOnly('death'); $('death').classList.remove('slam'); void $('death').offsetWidth; $('death').classList.add('slam'); $('blackout').style.transition='opacity 1.2s';
 }
 function showGore(){ const g=$('gore'); g.innerHTML=''; const [c,ctx]=mkCanvas(innerWidth,innerHeight); c.style.cssText='position:absolute;inset:0;width:100%;height:100%';
@@ -2530,12 +2758,12 @@ function showGore(){ const g=$('gore'); g.innerHTML=''; const [c,ctx]=mkCanvas(i
 function hideGore(){ $('gore').classList.add('hidden'); $('gore').innerHTML=''; }
 function resetScene(){ hype=0; camRoll=0; camDrop=0; lightsOut=0; flames.forEach(f=>f.out=false); hideGore(); crusherSpeed=.35; crusherY=crusherTarget=ceilingY(S?S.debt:1); crusher.position.y=crusherY; $('blackout').style.opacity=0; busy=false; doorTarget=0; offerCards.forEach(c=>c.visible=false); shopCards.forEach(c=>c.visible=false); bar(null); }
 function toTitle(){ stopFeed(); if(S&&mode!=='dead') saveRun(); mode='title'; $('help').classList.add('hidden'); showOnly('title'); setView('title'); resetScene(); refreshTitle(); }
-function refreshTitle(){ const st=stats(); $('titleStats').innerHTML=st.runs?`Descents: ${st.runs} · Deepest debt: ${st.bestDebt} · Escapes: ${st.wins} · Best spin: ${st.bestSpin}`:''; const sv=lsGet(SAVE_KEY); $('btnContinue').classList.toggle('hidden',!(sv&&sv.debt)); }
+function refreshTitle(){ const st=stats(); $('titleStats').innerHTML=st.runs?(LANG==='de'?`Abstiege: ${st.runs} · Tiefste Schuld: ${st.bestDebt} · Entkommen: ${st.wins} · Bester Spin: ${st.bestSpin}`:`Descents: ${st.runs} · Deepest debt: ${st.bestDebt} · Escapes: ${st.wins} · Best spin: ${st.bestSpin}`):''; const sv=lsGet(SAVE_KEY); $('btnContinue').classList.toggle('hidden',!(sv&&sv.debt)); }
 function continueRun(){ const sv=lsGet(SAVE_KEY); if(!sv) return; AU.init(); S=Object.assign(newState(),sv); S.pendingDeal=null; S.held=[]; S.lastGrid=null; S.event=null; shownCoins=S.pocket; lastWin=null; resetScene(); showOnly(null); mode='play'; setView('center'); refresh();
   if(S.levels&&S.levels.length) showLevels(()=>{ if(S.offers.length) showOffers(()=>enterShop()); else enterShop(); }); else if(S.offers&&S.offers.length) showOffers(S.round===0?()=>enterShop():null); else afterSpinCheck(); reels.forEach(paintReel); }
 function buildHelp(){
-  const hs=$('helpSyms'); hs.innerHTML=''; SYM_IDS.filter(s=>(s!=='mask'||(S&&has(S,'mask')))&&(!['moon','sand'].includes(s)||(S&&symWeight(S,s)>0))).forEach(s=>{ const d=document.createElement('div'); d.className='helpSym'; d.innerHTML=`<img src="${iconURL(s)}"><div><div class="sc">${SYM[s].n}</div><div class="dimt" style="font-size:13px">${s==='omen'?'adds Dread':s==='mask'?'wild':s==='sand'?'patterns with it give a free spin':'worth '+(S?symValue(S,s):SYM[s].v)+(S&&lv(S,s)>1?' · Lv '+roman(lv(S,s)):'')}</div></div>`; hs.appendChild(d); });
-  const hp=$('helpPats'); hp.innerHTML=''; Object.entries(PAT).forEach(([k,p])=>{ const hidden=p.secret&&!META.found[k==='fall'?'stairs':k]; const on=new Set(p.shape==='all'?Array.from({length:15},(_,i)=>`${Math.floor(i/5)},${i%5}`):p.shape.map(([r,c])=>r+','+c)); let mini='<div class="mini">'; for(let r=0;r<3;r++) for(let c=0;c<5;c++) mini+=`<i class="${on.has(r+','+c)?'on':''}"></i>`; mini+='</div>'; const d=document.createElement('div'); d.className='pat'; d.innerHTML=hidden?`<div class="sc">???</div><div class="mini">${'<i></i>'.repeat(15)}</div><div class="dimt">a hidden shape</div>`:`<div class="sc">${p.n}${p.secret?' ✦':''}</div>${mini}<div>×${S?patMult(S,k):p.m}</div>`; hp.appendChild(d); }); }
+  const hs=$('helpSyms'); hs.innerHTML=''; SYM_IDS.filter(s=>(s!=='mask'||(S&&has(S,'mask')))&&(!['moon','sand'].includes(s)||(S&&symWeight(S,s)>0))).forEach(s=>{ const d=document.createElement('div'); d.className='helpSym'; d.innerHTML=`<img src="${iconURL(s)}"><div><div class="sc">${SYM[s].n}</div><div class="dimt" style="font-size:13px">${s==='omen'?tr('adds Dread'):s==='mask'?tr('wild'):s==='sand'?tr('patterns with it give a free spin'):(LANG==='de'?'Wert ':'worth ')+(S?symValue(S,s):SYM[s].v)+(S&&lv(S,s)>1?' · Lv '+roman(lv(S,s)):'')}</div></div>`; hs.appendChild(d); });
+  const hp=$('helpPats'); hp.innerHTML=''; Object.entries(PAT).forEach(([k,p])=>{ const hidden=p.secret&&!META.found[k==='fall'?'stairs':k]; const on=new Set(p.shape==='all'?Array.from({length:15},(_,i)=>`${Math.floor(i/5)},${i%5}`):p.shape.map(([r,c])=>r+','+c)); let mini='<div class="mini">'; for(let r=0;r<3;r++) for(let c=0;c<5;c++) mini+=`<i class="${on.has(r+','+c)?'on':''}"></i>`; mini+='</div>'; const d=document.createElement('div'); d.className='pat'; d.innerHTML=hidden?`<div class="sc">???</div><div class="mini">${'<i></i>'.repeat(15)}</div><div class="dimt">${LANG==='de'?'eine versteckte Form':'a hidden shape'}</div>`:`<div class="sc">${p.n}${p.secret?' ✦':''}</div>${mini}<div>×${S?patMult(S,k):p.m}</div>`; hp.appendChild(d); }); }
 function openHelp(){ buildHelp(); const box=$('helpOwn'); if(box){ if(!S){ box.innerHTML=''; } else {
     let h='<div class="sc dimt">Your relics</div><div style="display:grid;gap:6px;margin:6px 0 14px">';
     h+=S.relics.length?uniqueRelics(S).map(id=>{ const r=RELIC_BY[id]; return `<div class="helpSym"><img src="${iconURL(r.icon)}"><div><span class="sc">${r.n}${cnt(S,id)>1?' <b class="gold">×'+cnt(S,id)+'</b>':''}</span> <span class="dimt" style="font-size:12px">${RARITY[r.r]}</span><div style="font-size:14px">${r.d}</div></div></div>`; }).join(''):'<span class="dimt">None yet.</span>';
@@ -2549,8 +2777,12 @@ $('btnContinue').onclick=()=>{ AU.click(); continueRun(); };
 $('btnHow').onclick=()=>{ AU.init(); openHelp(); };
 $('btnTrophies').onclick=()=>{ AU.init(); openTrophies(); }; $('trophyClose').onclick=()=>$('trophies').classList.add('hidden');
 $('helpClose').onclick=()=>$('help').classList.add('hidden'); $('btnHelp').onclick=openHelp;
-$('btnSound').onclick=()=>{ AU.init(); $('btnSound').textContent='Sound: '+(AU.toggle()?'on':'off'); };
-const setTurboLabel=()=>$('btnTurbo').textContent='Turbo: '+(turbo?'on':'off');
+const setSoundLabel=()=>$('btnSound').textContent=(LANG==='de'?'Ton: ':'Sound: ')+(AU.on?(LANG==='de'?'an':'on'):(LANG==='de'?'aus':'off'));
+$('btnSound').onclick=()=>{ AU.init(); AU.toggle(); setSoundLabel(); };
+const setTurboLabel=()=>$('btnTurbo').textContent='Turbo: '+(turbo?(LANG==='de'?'an':'on'):(LANG==='de'?'aus':'off'));
+function setLang(l){ LANG=l; try{ localStorage.setItem('hollowtoll_lang',l); }catch(e){} applyLang(); }
+function applyLang(){ applyLangData(); applyLangDOM(); setTurboLabel(); setSoundLabel(); payKey=''; btn7.key=btn3.key=''; for(const k in cardCache) delete cardCache[k]; redrawFontTextures(); hatchDoor.material[4].map.image=hatchCanvas(); hatchDoor.material[4].map.needsUpdate=true; refreshTitle(); if(!$('help').classList.contains('hidden')) openHelp(); if(mode==='offers') renderOfferBar(); }
+$('btnLang').onclick=()=>setLang(LANG==='de'?'en':'de'); $('titleLang').onclick=()=>setLang(LANG==='de'?'en':'de');
 $('btnTurbo').onclick=()=>{ turbo=!turbo; lsSet('hollowtoll_turbo',turbo); setTurboLabel(); }; setTurboLabel();
 $('btnMenu').onclick=toTitle;
 $('btnRetry').onclick=()=>{ resetScene(); newRun(); };
@@ -2623,6 +2855,7 @@ function frame(now){
   if(S&&AU.ctx&&AU.on&&mode!=='title'&&mode!=='dead'){ const o=owed(S), pr=Math.min(1,S.paid/Math.max(1,o)); const I={danger:Math.min(1,(1-pr)*(S.round/ROUNDS)+(S.boss?.3:0)),fever:S.fever,hype:Math.min(1,bloomBoost)};
     const bpm=84+S.fever*5+I.danger*30; if(MUS.next<AU.ctx.currentTime) MUS.next=AU.ctx.currentTime+.05; while(MUS.next<AU.ctx.currentTime+.12){ AU.musicStep(MUS.step,MUS.next,I); MUS.next+=60/bpm/2; MUS.step++; } }
   updateParticles(dt); ambientTick(dt); ambientFrame(dt);
+  trayHold=Math.max(0,trayHold-dt); if(feedTimer) trayHold=Math.max(trayHold,.8); const trayWant=trayHold>0?1:0; const tp=trayOut; trayOut+=(trayWant-trayOut)*Math.min(1,dt*(trayWant?9:3)); tray.position.z=.2+trayOut*.38; if(trayWant&&tp<.05&&trayOut>=.05) AU.noise(.25,.15,500,'bandpass',0,3,.01,200);
   hype=Math.max(0,hype-dt*.015); candleFlare=Math.max(hype*.25,candleFlare-dt*.6); machineRattle=Math.max(0,machineRattle-dt*.01);
   machine.position.x=machineRattle?(rnd()-.5)*machineRattle:0; machine.position.y=machineRattle?(rnd()-.5)*machineRattle*.5:0;
   if(hype>.6&&mode==='play'&&rnd()<dt*hype*14){ emit(new THREE.Vector3((rnd()-.5)*3.5,.05,-1.5+rnd()*2.5),1,{color:rnd()<.7?0xff9a30:0xffd070,speed:.05,up:.5+hype*.3,life:2.6,grav:-.08,drag:.3,size:.022,k:2.6,shrink:0}); }
@@ -2663,7 +2896,7 @@ requestAnimationFrame(frame);
 function redrawFontTextures(){ payKey=''; if(S) updatePaytable(); else { panelTex.image=panelCanvas(); panelTex.needsUpdate=true; } for(const k in cardCache) delete cardCache[k]; btn7.key=btn3.key=''; counterShown=-1;
   decalMeshes.forEach(m=>scene.remove(m)); decalMeshes=decals.map(f=>f()); engr.forEach(([m,t])=>{ m.material.map=engraved(t); m.material.needsUpdate=true; }); refresh(); }
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(redrawFontTextures);
-refresh(); refreshTitle();
+applyLang(); refresh(); refreshTitle();
 window.__HT={get S(){return S;},set S(v){S=v;},refresh,showDeal:id=>showDeal(id),dealChoice:i=>dealChoice(i),toggleHold:c=>toggleHold(c),trophy:id=>trophy(id),takeLevel:i=>takeLevel(i),inspect:(k,i)=>inspect(k,i),pull,buyUI,ringBell,enterShop,exitShop,die,takeOffer,startFeed,stopFeed,get mode(){return mode;},camera,setView,reels};
 
 })();
