@@ -39,6 +39,12 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
 #bar{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);z-index:21;display:flex;gap:10px}
 #touchBar{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:21;display:flex;gap:6px}
 #touchBar button{font-size:14px;padding:7px 10px;touch-action:none}
+#caption.voice{color:#b8f08a;font-style:italic;text-shadow:0 0 12px #000,0 0 6px #1a4010}
+#toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-140%);z-index:40;background:linear-gradient(#2a1d0c,#120a04);border:1px solid #e8c060;border-radius:6px;padding:10px 22px;text-align:center;box-shadow:0 0 30px rgba(232,192,96,.45);transition:transform .45s cubic-bezier(.2,1.4,.4,1);pointer-events:none}
+#toast.show{transform:translate(-50%,0)}
+#toast .tt{color:#e8c060;font-size:13px;letter-spacing:.3em}#toast .tn{font-family:'IM Fell English SC',Georgia,serif;font-size:24px;color:#fff0c8}#toast .tu{font-size:14px;color:#cdbf9f}
+.trow{display:flex;gap:10px;align-items:center;padding:6px 8px;border-radius:4px;background:rgba(255,255,255,.03);margin-bottom:6px;opacity:.5}
+.trow.got{opacity:1;border-left:3px solid #e8c060}.trow img{width:46px;height:46px}.trow:not(.got) img{filter:grayscale(1) brightness(.4)}
 #tooltip{position:fixed;pointer-events:none;z-index:50;max-width:290px;background:rgba(12,8,6,.94);border:1px solid var(--line);padding:7px 10px;border-radius:4px;font-size:15px;box-shadow:0 4px 18px #000}
 #tooltip h4{margin:0 0 3px;font-family:'IM Fell English SC',Georgia,serif;font-weight:normal;font-size:17px}
 #floaters{position:fixed;inset:0;pointer-events:none;z-index:19}
@@ -110,6 +116,7 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
     <button class="big red" id="btnNew">Begin the descent</button>
     <button id="btnContinue" class="hidden">Continue</button>
     <button id="btnHow">How to survive</button>
+    <button id="btnTrophies">Trophies</button>
   </div>
   <div class="stats" id="titleStats"></div>
 </div>
@@ -147,7 +154,11 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
       <li>Relics <b>stack</b>: buy the same relic again and its effect grows (two Jars of Moths make Moths four times as common). Copies share one shelf slot and cost more.</li>
       <li>Click a relic on the shelf or a rite on the stool to inspect it, sell it or perform it. Press H to see all of your relics.</li>
       <li><b>Golden spins</b> happen now and then: every pattern pays double. </li>
-      <li>Three or more patterns in one spin grant a <b>free spin</b>.</li>
+      <li>Three or more patterns in one spin grant a <b>free spin</b> (up to four per toll). So do patterns that include a <b>Sand Glass</b>.</li>
+      <li>After a spin you may <b>hold reels</b>: click a reel and it stays put for the next spin. You get one hold per toll.</li>
+      <li>Every third debt is a <b>boss debt</b> with a cruel rule. Break it for a rare relic and a full Jackpot gauge.</li>
+      <li>Sometimes <b>strange events</b> strike a spin. Sometimes a <b>voice in the wall</b> offers a deal. Neither is ever quite fair.</li>
+      <li>Some shapes are <b>secret</b>. Find them yourself. <b>Trophies</b> unlock new relics for later descents.</li>
       <li><b>Fever</b> (right tube): every winning spin in a row adds +0.25× to payouts. A dud puts it out.</li>
       <li>The <b>Peddler's hatch</b> (right wall) sells relics (they sit on the shelf, up to 7) and rites (on the stool, single use, click to perform).</li>
     </ul>
@@ -159,6 +170,8 @@ kbd{font-family:Georgia,serif;font-size:11px;opacity:.6;border:1px solid rgba(22
   </div>
 </div>
 <div id="gore" class="hidden"></div>
+<div id="trophies" class="modal hidden"><div class="modalBox" style="width:760px"><button class="close" id="trophyClose">Close <kbd>Esc</kbd></button><h3>Trophies <span class="dimt" id="trophyCount" style="font-size:18px"></span></h3><p class="flav">Every trophy unlocks a new relic for future descents.</p><div id="trophyList"></div></div></div>
+<div id="toast"></div>
 <div id="blackout"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -183,6 +196,8 @@ const SYM = {
   crown: {n:'Crown',  v:35, w:3},
   omen:  {n:'Omen',   v:0,  w:4},
   mask:  {n:'Mask',   v:0,  w:0},
+  moon:  {n:'Blood Moon', v:60, w:0},
+  sand:  {n:'Sand Glass', v:6, w:0},
 };
 const SYM_IDS = Object.keys(SYM);
 const PAT = {
@@ -195,8 +210,12 @@ const PAT = {
   peak:{n:'Crest',      m:4, g:'f', shape:[[2,0],[1,1],[0,2],[1,3],[2,4]]},
   swarm:{n:'Swarm (9+ of one)', m:5, g:'s', shape:[[0,0],[0,2],[0,4],[1,1],[1,3],[2,0],[2,2],[2,4],[1,2]]},
   abyss:{n:'Abyss (all 15)',   m:15,g:'s', shape:'all'},
+  cross:{n:'Cross', m:6, g:'x', secret:true, shape:[[0,2],[1,0],[1,1],[1,2],[1,3],[1,4],[2,2]]},
+  frame:{n:'Frame', m:12, g:'x', secret:true, shape:[[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,4],[2,0],[2,1],[2,2],[2,3],[2,4]]},
+  stairs:{n:'Stairs', m:5, g:'x', secret:true, shape:[[2,0],[2,1],[1,2],[0,3],[0,4]]},
+  fall:{n:'Falling Stairs', m:5, g:'x', secret:true, shape:[[0,0],[0,1],[1,2],[2,3],[2,4]]},
 };
-const DEBTS = [25,100,380,1400,5200,19000,70000,250000];
+const DEBTS = [25,110,420,1600,6000,22000,82000,300000];
 const FINAL_DEBT = DEBTS.length, ROUNDS = 3;
 const MAX_RELICS = 7, MAX_RITES = 2;
 function debtBase(n){ return n<=DEBTS.length ? DEBTS[n-1] : Math.round(DEBTS[DEBTS.length-1]*Math.pow(1.45,n-DEBTS.length)); }
@@ -271,8 +290,71 @@ const RELICS = [
   {id:'oil',n:'Anointing Oil',d:'When you level up a symbol, it gains two levels.',r:2,icon:'oil'},
   {id:'scale',n:"Usurer's Scale",d:'+5% interest, and interest has no limit.',r:2,icon:'scale',interest:.05,intcap:99999},
   {id:'gauge',n:'Gilded Gauge',d:'Jackpot spins pay x4 instead of x2.',r:1,icon:'gauge'},
+  {id:'moonpearl',n:'Moon Pearl',d:'Blood Moons appear twice as often.',r:2,icon:'moonpearl'},
+  {id:'crimson',n:'Crimson Lens',d:'Blood Moons are worth +60.',r:2,icon:'crimson'},
+  {id:'sandpipe',n:'Sand Pipe',d:'Sand Glasses appear twice as often.',r:1,icon:'sandpipe'},
+  {id:'clamp',n:'Rusty Clamp',d:'+1 reel hold every toll.',r:1,icon:'clamp'},
+  {id:'vise',n:'Iron Vise',d:'Patterns touching a held reel pay double.',r:2,icon:'vise'},
+  {id:'crossbone',n:'Crossed Bones',d:'Cross patterns pay x3.',r:2,icon:'crossbone'},
+  {id:'giltframe',n:'Gilt Frame',d:'Frame patterns pay x3.',r:2,icon:'giltframe'},
+  {id:'ladder',n:'Rotten Ladder',d:'Stair patterns pay x3.',r:1,icon:'ladder'},
+  {id:'lodgerkey',n:"Lodger's Key",d:'The voice in the wall visits twice as often.',r:1,icon:'lodgerkey'},
+  {id:'contract',n:'Signed Contract',d:'Deals with the voice in the wall are 50% better.',r:2,icon:'contract'},
+  {id:'hood',n:"Executioner's Hood",d:'Boss rules no longer apply to you.',r:3,icon:'hood'},
+  {id:'stormglass',n:'Storm Glass',d:'Strange events happen twice as often.',r:1,icon:'stormglass'},
+  {id:'omenfeast',n:'Feast of Omens',d:'Each Omen on the reels adds +15% to the spin.',r:2,icon:'omenfeast'},
+  {id:'dreadengine',n:'Dread Engine',d:'Spins pay +10% for every point of Dread.',r:2,icon:'dreadengine'},
+  {id:'bowl',n:"Beggar's Bowl",d:'While your purse holds less than a tenth of the debt, spins pay x3.',r:2,icon:'begbowl'},
+  {id:'twinflame',n:'Twin Flames',d:'Candles and Moths are the same symbol.',r:3,icon:'twinflame'},
+  {id:'kingmaker',n:'Kingmaker',d:'Bells and Crowns are the same symbol.',r:3,icon:'kingmaker'},
+  {id:'wick',n:'Short Wick',d:'Tolls of three give +2 spins.',r:1,icon:'wick'},
+  {id:'lamp',n:"Hoarder's Lamp",d:'Spins pay +5% for every relic you own, copies included.',r:2,icon:'hlamp'},
 ];
 const RELIC_BY = Object.fromEntries(RELICS.map(r=>[r.id,r]));
+let LOCKED=new Set();
+const BOSSES=[
+  {id:'eclipse',n:'The Eclipse',d:'Omens come two and a half times as often.'},
+  {id:'columns',n:'The Upright',d:'Rows pay nothing. Only columns, diagonals and shapes count.'},
+  {id:'famine',n:'The Famine',d:'Every toll gives two fewer spins.'},
+  {id:'greed',n:'The Skimmer',d:'The Maw skims a quarter of every win before it reaches you.'},
+  {id:'dim',n:'The Damp',d:'Your Fever cannot climb above x1.5.'},
+  {id:'fog',n:'The Fog',d:'The machine stops helping you. No secret re-spins, less Echo.'},
+];
+const BOSS_BY=Object.fromEntries(BOSSES.map(b=>[b.id,b]));
+const EVENTS=[
+  {id:'moon',n:'BLOOD MOON',d:'Blood Moons swarm the reels this spin.'},
+  {id:'hum',n:'THE WALLS HUM',d:'Echo surges this spin.'},
+  {id:'double',n:'THE MACHINE SHUDDERS',d:'This spin pays double.'},
+  {id:'gift',n:'COINS FROM THE DARK',d:'Coins drip from the ceiling into your purse.'},
+  {id:'storm',n:'OMEN STORM',d:'Omens everywhere, but this spin pays triple.'},
+  {id:'crowns',n:'A CROWNED HOUR',d:'Crowns rain onto the reels this spin.'},
+];
+const EVENT_BY=Object.fromEntries(EVENTS.map(e=>[e.id,e]));
+const DEALS=[
+  {id:'wager',say:'Wager half your purse. If your next spin forms two or more patterns, it comes back tripled.',ok:S=>S.pocket>=4&&S.spins>0},
+  {id:'dreadspins',say:'Swallow five Dread, and I will slip you three spins.',ok:S=>true},
+  {id:'jpfill',say:'A fifth of your purse, and your Jackpot gauge is full.',ok:S=>S.pocket>=5&&(S.jp||0)<90&&S.spins>0},
+  {id:'fever',say:'Burn a tenth of your purse. Your Fever will burn hotter.',ok:S=>S.pocket>=5&&S.spins>0},
+  {id:'swap',say:'Give me the relic you love least. I will leave you a stranger one.',ok:S=>S.relics.length>0},
+  {id:'sharpen',say:'A quarter of what the Maw holds, and I will sharpen one of your symbols.',ok:S=>S.paid>=10},
+  {id:'tip',say:'Listen... the next three spins favour Crowns. No charge. This time.',ok:S=>S.spins>0},
+];
+const DEAL_BY=Object.fromEntries(DEALS.map(d=>[d.id,d]));
+function boss(S){ return cnt(S,'hood')?null:S.boss; }
+function rollEvent(S,rng){ if(rng()<.07*(1+cnt(S,'stormglass'))) return EVENTS[Math.floor(rng()*EVENTS.length)].id; return null; }
+function voiceChance(S){ return .11*(1+cnt(S,'lodgerkey')); }
+function pickDeal(S,rng){ const ok=DEALS.filter(d=>d.ok(S)); return ok.length?ok[Math.floor(rng()*ok.length)].id:null; }
+function dealPower(S){ return 1+.5*cnt(S,'contract'); }
+function acceptDeal(S,id,rng){ const k=dealPower(S); const out={};
+  if(id==='wager'){ S.wager=Math.floor(S.pocket/2); S.pocket-=S.wager; out.wager=S.wager; }
+  else if(id==='dreadspins'){ S.dread+=5; const n=Math.round(3*k); S.spins+=n; out.spins=n; }
+  else if(id==='jpfill'){ S.pocket=Math.floor(S.pocket*(1-.2/k)); S.jp=100; }
+  else if(id==='fever'){ S.pocket=Math.floor(S.pocket*.9); S.fever=Math.min(feverCap(S)+2,Math.max(S.fever,Math.round(3*k))); }
+  else if(id==='swap'){ const own=S.relics.slice().sort((a,b)=>RELIC_BY[a].r-RELIC_BY[b].r); const gone=own[0]; S.relics.splice(S.relics.indexOf(gone),1);
+    const want=Math.min(3,RELIC_BY[gone].r+1); const pool=RELICS.filter(r=>r.r>=want&&!LOCKED.has(r.id)&&canAddRelic(S,r.id)&&r.id!==gone); const got=pool[Math.floor(rng()*pool.length)]; if(got){ S.relics.push(got.id); if(k>1&&rng()<.5&&canAddRelic(S,got.id)) S.relics.push(got.id); } out.gone=gone; out.got=got&&got.id; }
+  else if(id==='sharpen'){ S.paid=Math.floor(S.paid*(1-.25/k)); S.levels=levelChoices(S,rng); }
+  else if(id==='tip'){ S.tip=Math.round(3*k); }
+  S.deals=(S.deals||0)+1; return out; }
 const RITES = [
   {id:'holy',n:'Holy Water',d:'Wash away all Dread.',icon:'vial2',p:6},
   {id:'blackcandle',n:'Black Candle',d:'Next 3 spins: +30% Echo.',icon:'blackcandle',p:8},
@@ -303,34 +385,38 @@ function relics(S){ return S.relics.map(id=>RELIC_BY[id]).filter(Boolean); }
 function sumProp(S,p){ return relics(S).reduce((a,r)=>a+(r[p]||0),0); }
 function lv(S,s){ return (S.lv&&S.lv[s])||1; }
 function levelMult(S,s){ return Math.pow(2,lv(S,s)-1); }
-function symValue(S,s){ let v=SYM[s].v+(S.bonus[s]||0); for(const r of relics(S)) if(r.val&&r.val[s]) v+=r.val[s]; return v*levelMult(S,s); }
+function symValue(S,s){ let v=SYM[s].v+(S.bonus[s]||0)+(s==='moon'?60*cnt(S,'crimson'):0); for(const r of relics(S)) if(r.val&&r.val[s]) v+=r.val[s]; return v*levelMult(S,s); }
 function isWild(S,s){ return s==='mask'||(s==='omen'&&!!S&&has(S,'blackmass')); }
 function jpGain(S,ctx){ const g=ctx.pats.length?4+3*ctx.pats.length:9; return g*(1+cnt(S,'censer')); }
-function levelChoices(S,rng){ const pool=SYM_IDS.filter(s=>s!=='omen'&&s!=='mask'&&symWeight(S,s)>0); const out=[]; while(out.length<3&&pool.length) out.push(pool.splice(Math.floor(rng()*pool.length),1)[0]); return out; }
+function levelChoices(S,rng){ const pool=SYM_IDS.filter(s=>!['omen','mask','sand'].includes(s)&&symWeight(S,s)>0); const out=[]; while(out.length<3&&pool.length) out.push(pool.splice(Math.floor(rng()*pool.length),1)[0]); return out; }
 function levelUp(S,s){ S.lv[s]=lv(S,s)+1+cnt(S,'oil'); }
-function jackpotGrid(S,rng){ const pool=SYM_IDS.filter(s=>s!=='omen'&&s!=='mask'&&symWeight(S,s)>0); const best=pool.reduce((a,b)=>symValue(S,b)>symValue(S,a)?b:a);
+function jackpotGrid(S,rng){ const pool=SYM_IDS.filter(s=>!['omen','mask','sand'].includes(s)&&symWeight(S,s)>0); const best=pool.reduce((a,b)=>symValue(S,b)>symValue(S,a)?b:a);
   const pick=rng()<.6?best:pool[Math.floor(rng()*pool.length)]; const g=rollRaw(S,rng);
   for(let c=0;c<5;c++) g[1][c]=pick; const extra=rng(); if(extra<.4){ for(let c=0;c<5;c++) g[0][c]=pick; } else if(extra<.7){ [[0,0],[2,2],[0,4],[2,0],[0,2],[2,4]].forEach(([r,c])=>{ if(rng()<.6) g[r][c]=pick; }); }
   for(let r=0;r<3;r++) for(let c=0;c<5;c++) if(g[r][c]==='omen') g[r][c]=pick; return g; }
-function omenWeight(S){ return (SYM.omen.w+.6*(S.debt-1))*Math.pow(.5,cnt(S,'widow'))*S.perm.omen; }
+function omenWeight(S){ return (SYM.omen.w+.6*(S.debt-1))*(boss(S)==='eclipse'?2.5:1)*(S.event==='storm'?4:1)*Math.pow(.5,cnt(S,'widow'))*S.perm.omen; }
 function symWeight(S,s){
   if(s==='omen') return S.omenBane>0?0:omenWeight(S);
   if(s==='mask') return 4*cnt(S,'mask');
-  let w=SYM[s].w*(S.wmul[s]||1); for(const r of relics(S)) if(r.wmul&&r.wmul[s]) w*=r.wmul[s]; return w;
+  if(s==='moon') return (S.debt>=3?1:0)*Math.pow(2,cnt(S,'moonpearl'))*(S.event==='moon'?10:1);
+  if(s==='sand') return (S.debt>=2?1.6:0)*Math.pow(2,cnt(S,'sandpipe'));
+  let w=SYM[s].w*(S.wmul[s]||1); if(s==='crown'&&(S.event==='crowns'||S.tip>0)) w*=S.event==='crowns'?8:4; for(const r of relics(S)) if(r.wmul&&r.wmul[s]) w*=r.wmul[s]; return w;
 }
 function patMult(S,t){
   let m=PAT[t].m; const g=PAT[t].g;
   for(const r of relics(S)) if(r.pmul&&r.pmul[g]) m+=r.pmul[g];
   if(g==='s') m*=Math.pow(2,cnt(S,'hive'));
   if(t==='h5') m*=Math.pow(3,cnt(S,'coffin'));
+  if(t==='cross') m*=Math.pow(3,cnt(S,'crossbone')); if(t==='frame') m*=Math.pow(3,cnt(S,'giltframe')); if(t==='stairs'||t==='fall') m*=Math.pow(3,cnt(S,'ladder'));
+  if(g==='h'&&boss(S)==='columns') m=0;
   return m;
 }
 function earlyLuck(S){ return .08; }
 function goldenChance(S){ return Math.min(.6,.08*(1+cnt(S,'glever'))); }
-function luckRolls(S){ let n=1; if(S.dry>=2) n+=1; if(S.dry>=4) n+=1; n+=cnt(S,'loadedreel'); return n; }
-function echoChance(S){ return Math.min(.65, .06+earlyLuck(S)+Math.min(.24,.06*S.dry)+S.perm.echo+sumProp(S,'echo')+(S.blackCandle>0?.3:0)); }
+function luckRolls(S){ if(boss(S)==='fog') return S.dry>=3?1:0; let n=1; if(S.dry>=2) n+=1; if(S.dry>=4) n+=1; n+=cnt(S,'loadedreel'); return n; }
+function echoChance(S){ return Math.min(.75, (boss(S)==='fog'?-.1:0)+(S.event==='hum'?.35:0)+.06+earlyLuck(S)+Math.min(.24,.06*S.dry)+S.perm.echo+sumProp(S,'echo')+(S.blackCandle>0?.3:0)); }
 function maxDread(S){ return Math.max(4,10+S.perm.dread+sumProp(S,'dread')); }
-function feverCap(S){ return Math.min(12,S.perm.feverCap+2*cnt(S,'furnace')); }
+function feverCap(S){ return boss(S)==='dim'?2:Math.min(12,S.perm.feverCap+2*cnt(S,'furnace')); }
 function feverMult(S){ return 1+.25*Math.min(S.fever,feverCap(S)); }
 function interestRate(S){ return .10+sumProp(S,'interest'); }
 function interestCap(S){ return 15+sumProp(S,'intcap'); }
@@ -339,9 +425,9 @@ function relicPrice(S,r){ return Math.max(1,Math.round([0,9,18,32][r.r]*priceMul
 function ritePrice(S,r){ return Math.max(1,Math.round(r.p*priceMul(S))); }
 function sellPrice(S,r){ return Math.floor(relicPrice(S,r)/2); }
 function rerollCost(S){ return has(S,'rat')?1:S.rerollCost; }
-function owed(S){ return Math.max(1,Math.round(debtBase(S.debt)*S.perm.quota*S.debtMul*Math.pow(.9,cnt(S,'tongue')))); }
+function owed(S){ return Math.max(1,Math.round(debtBase(S.debt)*(S.boss?.9:1)*S.perm.quota*S.debtMul*Math.pow(.9,cnt(S,'tongue')))); }
 function bundleCost(S,n){ const base=(n===7?5:2)*Math.pow(1.7,S.debt-1); return Math.max(1,Math.round(base*S.perm.cost*Math.pow(.75,cnt(S,'clock')))); }
-function bundleSpins(S,n){ return n+S.perm.spins+cnt(S,'handle'); }
+function bundleSpins(S,n){ return Math.max(1,n+S.perm.spins+cnt(S,'handle')+(n===3?2*cnt(S,'wick'):0)-(boss(S)==='famine'?2:0)); }
 function canBuy(S,n){ return S.round<ROUNDS && S.spins===0 && S.pocket>=bundleCost(S,n); }
 
 function pickWeighted(items,weights,rng){ let t=0; for(const w of weights) t+=w; let x=rng()*t; for(let i=0;i<items.length;i++){ x-=weights[i]; if(x<0) return items[i]; } return items[items.length-1]; }
@@ -364,6 +450,7 @@ function rollRaw(S,rng){
     if(!s || (s==='omen'&&S.omenBane>0)) s=pickWeighted(SYM_IDS,ws,rng);
     g[r][c]=s;
   }
+  if(S.held&&S.held.length&&S.lastGrid) for(const c of S.held) for(let r=0;r<3;r++) g[r][c]=S.lastGrid[r][c];
   return g;
 }
 function allCells(){ const a=[]; for(let r=0;r<3;r++) for(let c=0;c<5;c++) a.push([r,c]); return a; }
@@ -376,14 +463,16 @@ function lines(){ // every straight line of 3 cells
 }
 const LINES=lines();
 function omenLine(g,S){ if(S&&has(S,'blackmass')) return null; return LINES.find(l=>l.every(([r,c])=>g[r][c]==='omen'))||null; }
-function findPatterns(g,S){
+function canonMap(S){ const m={}; if(!S) return m; const pair=(a,b)=>{ const hi=symValue(S,a)>=symValue(S,b)?a:b; m[a]=hi; m[b]=hi; }; if(has(S,'twinflame')) pair('candle','moth'); if(has(S,'kingmaker')) pair('bell','crown'); return m; }
+function findPatterns(g0,S){
+  const cm=canonMap(S); const g=g0.map(row=>row.map(x=>cm[x]||x));
   const W=x=>isWild(S,x), P=[];
   const rep=cells=>{ let k=null; for(const [r,c] of cells){ const x=g[r][c]; if(W(x)) continue; if(x==='omen') return null; if(k===null) k=x; else if(k!==x) return null; } return k===null?'crown':k; };
   for(let r=0;r<3;r++){ let c=0; while(c<5){ let e=c, k=null; while(e<5){ const x=g[r][e]; if(W(x)){ e++; continue; } if(x==='omen') break; if(k===null){ k=x; e++; } else if(x===k) e++; else break; }
       const len=e-c; if(len>=3){ const cells=[]; for(let x=c;x<e;x++) cells.push([r,x]); P.push({t:'h'+Math.min(5,len),s:k||'crown',cells}); c=e; } else c++; } }
   for(let c=0;c<5;c++){ const cells=[[0,c],[1,c],[2,c]]; const k=rep(cells); if(k) P.push({t:'v',s:k,cells}); }
   for(let c=0;c<3;c++){ for(const cells of [[[0,c],[1,c+1],[2,c+2]],[[2,c],[1,c+1],[0,c+2]]]){ const k=rep(cells); if(k) P.push({t:'d',s:k,cells}); } }
-  for(const t of ['vee','peak']){ const cells=PAT[t].shape.map(x=>x.slice()); const k=rep(cells); if(k) P.push({t,s:k,cells}); }
+  for(const t of ['vee','peak','cross','frame','stairs','fall']){ const cells=PAT[t].shape.map(x=>x.slice()); const k=rep(cells); if(k) P.push({t,s:k,cells}); }
   const cnt={}; let wild=0; for(const row of g) for(const x of row){ if(W(x)) wild++; else cnt[x]=(cnt[x]||0)+1; }
   for(const k in cnt){ if(k==='omen') continue; const n=cnt[k]+wild;
     if(n===15) P.push({t:'abyss',s:k,cells:allCells()});
@@ -394,7 +483,7 @@ function scoreSpin(S,g){
   const pats=findPatterns(g,S);
   for(const p of pats){ p.base=symValue(S,p.s); p.mult=patMult(S,p.t); p.pay=Math.round(p.base*p.mult); }
   const omens=g.flat().filter(s=>s==='omen').length;
-  const ctx={jackpot:!!S.jpSpin,pats,omens,mult:1,extra:0,notes:[],voided:false,dreadAdd:omens,trig:[]};
+  const ctx={grid:g,held:(S.held||[]).slice(),event:S.event,jackpot:!!S.jpSpin,pats,omens,mult:1,extra:0,notes:[],voided:false,dreadAdd:omens,trig:[]};
   if(pats.length){
     if(has(S,'mirror')){ const best=pats.reduce((a,b)=>b.pay>a.pay?b:a); best.pay*=1+cnt(S,'mirror'); best.mirrored=true; ctx.trig.push('mirror'); }
     if(has(S,'dice')){ ctx.extra+=pats.length*cnt(S,'dice'); ctx.trig.push('dice'); }
@@ -403,6 +492,15 @@ function scoreSpin(S,g){
     if(has(S,'chain')){ const k=g.flat().filter(s=>s==='crown').length; if(k){ ctx.mult*=1+.1*k*cnt(S,'chain'); ctx.trig.push('chain'); } }
     if(has(S,'tally')){ const n=S.tally||0; if(n){ ctx.extra+=n*pats.length; ctx.trig.push('tally'); } }
     if(S.fever>0){ ctx.fever=feverMult(S); ctx.mult*=ctx.fever; }
+    if(has(S,'vise')&&ctx.held.length){ let any=false; for(const p of pats) if(p.cells.some(([r,c])=>ctx.held.includes(c))){ p.pay*=1+cnt(S,'vise'); any=true; } if(any) ctx.trig.push('vise'); }
+    if(has(S,'omenfeast')&&omens){ ctx.mult*=1+.15*omens*cnt(S,'omenfeast'); ctx.trig.push('omenfeast'); }
+    if(has(S,'dreadengine')&&S.dread){ ctx.mult*=1+.1*S.dread*cnt(S,'dreadengine'); ctx.trig.push('dreadengine'); }
+    if(has(S,'bowl')&&S.pocket<owed(S)*.1){ ctx.mult*=1+2*cnt(S,'bowl'); ctx.notes.push("Beggar's Bowl"); ctx.trig.push('bowl'); }
+    if(has(S,'lamp')){ ctx.mult*=1+.05*S.relics.length*cnt(S,'lamp'); ctx.trig.push('lamp'); }
+    if(S.event==='double'){ ctx.mult*=2; ctx.notes.push('Shudder x2'); }
+    if(S.event==='storm'){ ctx.mult*=3; ctx.notes.push('Omen storm x3'); }
+    if(pats.some(p=>p.cells.some(([r,c])=>g[r][c]==='sand'))) ctx.freeSpin=(ctx.freeSpin||0)+1;
+    ctx.secrets=pats.filter(p=>PAT[p.t].secret).map(p=>p.t);
     if(has(S,'finger')){ let any=false; for(const p of pats) if(p.cells.length>=4){ p.pay*=1+cnt(S,'finger'); any=true; } if(any) ctx.trig.push('finger'); }
     if(has(S,'idol')){ const k=new Set(pats.map(p=>p.s)).size; if(k){ const m=Math.pow(1+.5*cnt(S,'idol'),k); ctx.mult*=m; ctx.notes.push('Idol x'+m.toFixed(2)); ctx.trig.push('idol'); } }
     if(has(S,'abacus')&&((S.stats.spins+1)%6===0)){ const m=1+4*cnt(S,'abacus'); ctx.mult*=m; ctx.notes.push('Abacus x'+m); ctx.trig.push('abacus'); }
@@ -420,11 +518,17 @@ function scoreSpin(S,g){
   else if(omens>=3){ if(has(S,'ash')) ctx.trig.push('ash'); else { ctx.voided=true; total=0; } }
   if(has(S,'saint')&&omens){ total+=4*omens*cnt(S,'saint'); ctx.trig.push('saint'); }
   if(has(S,'tick')&&total>0){ ctx.ticked=Math.floor(total*Math.min(.75,.25*cnt(S,'tick'))); total-=ctx.ticked; if(ctx.ticked) ctx.trig.push('tick'); }
-  if(pats.length>=3&&!ctx.voided&&!ctx.devour) ctx.freeSpin=1;
+  if(pats.length>=3&&!ctx.voided&&!ctx.devour) ctx.freeSpin=(ctx.freeSpin||0)+1;
+  if(ctx.voided||ctx.devour) ctx.freeSpin=0;
+  if(boss(S)==='greed'&&total>0){ ctx.skimmed=Math.floor(total*.25); total-=ctx.skimmed; }
   ctx.sub=sub; ctx.total=total;
   return ctx;
 }
 function applySpin(S,ctx){
+  if(S.wager){ if(ctx.pats.length>=2&&!ctx.voided&&!ctx.devour){ ctx.wagerWon=Math.round(S.wager*3*dealPower(S)); S.pocket+=ctx.wagerWon; } else ctx.wagerLost=S.wager; S.wager=0; }
+  if(ctx.freeSpin){ const give=Math.min(ctx.freeSpin,S.freeLeft||0); S.freeLeft=(S.freeLeft||0)-give; ctx.freeSpin=give; S.spins+=give; }
+  if(S.tip>0) S.tip--;
+  S.lastGrid=ctx.grid; S.held=[]; S.event=null;
   S.pocket+=ctx.total; S.roundWon+=ctx.total; S.stats.earned+=ctx.total; S.stats.spins++;
   if(ctx.total>S.stats.best) S.stats.best=ctx.total;
   S.tick+=ctx.ticked||0;
@@ -441,18 +545,19 @@ function applySpin(S,ctx){
   if(S.boneDice>0) S.boneDice--; if(S.blackCandle>0) S.blackCandle--; if(S.omenBane>0) S.omenBane--;
 }
 function newState(){
-  return {debt:1,round:0,spins:0,dry:0,jp:0,jpSpin:false,lv:{},levels:[],golden:false,wishUsed:false,pocket:20,paid:0,roundWon:0,relics:[],rites:[],dread:0,rerollCost:2,debtMul:1,blackCandle:0,boneDice:0,omenBane:0,
+  return {debt:1,round:0,spins:0,dry:0,boss:null,event:null,held:[],holds:0,lastGrid:null,wager:0,tip:0,deals:0,voiceUsed:false,jp:0,jpSpin:false,lv:{},levels:[],golden:false,wishUsed:false,pocket:20,paid:0,roundWon:0,relics:[],rites:[],dread:0,rerollCost:2,debtMul:1,blackCandle:0,boneDice:0,omenBane:0,
     shop:[],offers:[],endless:false,fever:0,tick:0,tally:0,bonus:{},wmul:{},bargains:[],
     perm:{spins:0,quota:1,omen:1,dread:0,echo:0,hunger:.5,feverStart:0,feverCap:6,cost:1},stats:{spins:0,best:0,earned:0}};
 }
 function beginDebt(S,rng){
-  S.round=0; S.spins=0; S.paid=0; S.roundWon=0; S.rerollCost=2; S.debtMul=1;
+  S.round=0; S.spins=0; S.paid=0; S.roundWon=0; S.rerollCost=2; S.debtMul=1; S.held=[];
+  S.boss=(S.debt%3===0)?BOSSES[Math.floor(rng()*BOSSES.length)].id:null;
   let tithe=0; if(has(S,'tithe')){ tithe=3*S.relics.length*cnt(S,'tithe'); S.pocket+=tithe; }
   S.shop=genShop(S,rng); S.offers=genOfferings(S,rng);
   return {tithe};
 }
 function genShop(S,rng){
-  const pool=RELICS.filter(r=>canAddRelic(S,r.id)), out=[];
+  const pool=RELICS.filter(r=>canAddRelic(S,r.id)&&!LOCKED.has(r.id)), out=[];
   for(let i=0;i<4&&pool.length;i++){
     const w=rarW(S), x=rng(), want=x<w[0]?1:x<w[0]+w[1]?2:3;
     let c=pool.filter(r=>r.r===want); if(!c.length) c=pool;
@@ -463,7 +568,7 @@ function genShop(S,rng){
   return out;
 }
 function rarW(S,base1){ const r3=Math.min(.4,.05+.05*(S.debt-1)); const r2=Math.min(.5,.33+.02*(S.debt-1)); return [Math.max(.1,1-r2-r3),r2]; }
-function pickRelic(S,rng,w){ const own=uniqueRelics(S); if(own.length&&rng()<.25) return own[Math.floor(rng()*own.length)]; const pool=RELICS.filter(r=>canAddRelic(S,r.id)); if(!pool.length) return null; const x=rng(), want=x<w[0]?1:x<w[0]+w[1]?2:3; let c=pool.filter(r=>r.r===want); if(!c.length) c=pool; return c[Math.floor(rng()*c.length)].id; }
+function pickRelic(S,rng,w){ const own=uniqueRelics(S); if(own.length&&rng()<.25) return own[Math.floor(rng()*own.length)]; const pool=RELICS.filter(r=>canAddRelic(S,r.id)&&!LOCKED.has(r.id)); if(!pool.length) return null; const x=rng(), want=x<w[0]?1:x<w[0]+w[1]?2:3; let c=pool.filter(r=>r.r===want); if(!c.length) c=pool; return c[Math.floor(rng()*c.length)].id; }
 function genOfferings(S,rng){
   const out=[], used=new Set();
   const relic=()=>{ for(let k=0;k<6;k++){ const id=pickRelic(S,rng,rarW(S)); if(id&&!used.has(id)&&canAddRelic(S,id)){ used.add(id); return {kind:'relic',id}; } } return null; };
@@ -482,7 +587,7 @@ function buyBundle(S,n,rng){
   if(!canBuy(S,n)) return null;
   const cost=bundleCost(S,n); S.pocket-=cost; S.round++; S.spins=bundleSpins(S,n); S.roundWon=0;
   const interest=Math.min(interestCap(S),Math.floor(S.paid*interestRate(S))); S.paid+=interest;
-  S.fever=Math.max(S.fever,Math.min(feverCap(S),S.perm.feverStart)); S.wishUsed=0;
+  S.fever=Math.max(S.fever,Math.min(feverCap(S),S.perm.feverStart)); S.wishUsed=0; S.holds=1+cnt(S,'clamp'); S.freeLeft=4; S.voiceUsed=false; S.held=[];
   if(n===3) S.offers=genOfferings(S,rng);
   return {cost,interest,spins:S.spins};
 }
@@ -494,9 +599,10 @@ function settle(S,rng){
   let tick=0; if(S.tick>0){ tick=S.tick*2; S.pocket+=tick; S.tick=0; }
   let glut=false; if(has(S,'glutton')){ for(const k of SYM_IDS) if(k!=='omen') S.bonus[k]=(S.bonus[k]||0)+cnt(S,'glutton'); glut=true; }
   if(has(S,'tally')) S.tally=(S.tally||0)+cnt(S,'tally');
-  const paid=o; S.debt++; S.levels=levelChoices(S,rng);
+  const paid=o, wasBoss=!!S.boss; S.debt++; S.levels=levelChoices(S,rng);
   const info=beginDebt(S,rng);
-  return {paid,surplus,bonus,tick,glut,tithe:info.tithe};
+  if(wasBoss){ S.jp=100; const pool=RELICS.filter(r=>r.r===3&&!LOCKED.has(r.id)&&canAddRelic(S,r.id)); if(pool.length){ S.offers[0]={kind:'relic',id:pool[Math.floor(rng()*pool.length)].id}; } }
+  return {paid,surplus,bonus,tick,glut,tithe:info.tithe,wasBoss};
 }
 function stuck(S){ return S.spins===0 && S.paid+S.pocket<owed(S) && (S.round>=ROUNDS || S.pocket<bundleCost(S,3)) && !S.rites.includes('tonic') && !S.rites.includes('pact'); }
 function useRite(S,id){
@@ -509,7 +615,7 @@ function useRite(S,id){
   else if(id==='bane') S.omenBane+=5;
   S.rites.splice(i,1); return true;
 }
-if(typeof module!=='undefined') module.exports={cnt,canAddRelic,uniqueRelics,levelUp,levelChoices,lv,goldenChance,findPatterns,SYM,SYM_IDS,RELICS,RITES,BARGAINS,newState,beginDebt,rollGrid,scoreSpin,applySpin,buyBundle,deposit,settle,owed,bundleCost,relicPrice,ritePrice,takeOffering,has,stuck,ROUNDS,FINAL_DEBT};
+if(typeof module!=='undefined') module.exports={rollEvent,pickDeal,acceptDeal,voiceChance,boss,cnt,canAddRelic,uniqueRelics,levelUp,levelChoices,lv,goldenChance,findPatterns,SYM,SYM_IDS,RELICS,RITES,BARGAINS,newState,beginDebt,rollGrid,scoreSpin,applySpin,buyBundle,deposit,settle,owed,bundleCost,relicPrice,ritePrice,takeOffering,has,stuck,ROUNDS,FINAL_DEBT};
 </script>
 
 <!-- ===================== PRESENTATION ===================== -->
@@ -1258,6 +1364,48 @@ Object.assign(AU,{
   tick(n){ this.tone(500+n*25,.035,'square',.035); },
   hype(n){ this.tone(330*Math.pow(1.06,n),.4,'triangle',.09,0,0,.01); this.tone(660*Math.pow(1.06,n),.4,'triangle',.05,0,.08,.01); this.tone(990*Math.pow(1.06,n),.35,'sine',.04,0,.16,.01); },
 });
+Object.assign(DRAW,{
+  moon(g){ g.save(); g.fillStyle=rg(g,0,0,10,54,[[0,'rgba(255,40,20,.55)'],[1,'rgba(120,0,0,0)']]); circ(g,0,0,54); g.fill();
+    g.shadowColor='#ff2010'; g.shadowBlur=18; g.fillStyle=rg(g,-10,-12,4,40,[[0,'#ff7a5a'],[.45,'#c0180c'],[1,'#3a0202']]); circ(g,0,0,36); g.fill(); g.shadowBlur=0;
+    g.fillStyle='rgba(60,0,0,.45)'; [[-12,-8,8],[10,6,11],[-4,18,6],[16,-16,5],[-20,10,4]].forEach(([x,y,r])=>{ circ(g,x,y,r); g.fill(); });
+    g.fillStyle='rgba(255,200,180,.25)'; g.beginPath(); g.ellipse(-14,-16,10,5,-.6,0,TAU); g.fill();
+    g.fillStyle='#8a0000'; [[-6,34,10],[8,34,16]].forEach(([x,y,l])=>{ g.fillRect(x-2,y,4,l); circ(g,x,y+l,3); g.fill(); }); g.restore(); },
+  sand(g){ g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=6;
+    g.fillStyle=lg(g,-30,0,30,0,[[0,'#3a1e08'],[.5,'#8a5a28'],[1,'#3a1e08']]); g.fillRect(-30,-44,60,9); g.fillRect(-30,35,60,9); g.fillRect(-27,-36,5,72); g.fillRect(22,-36,5,72); g.shadowBlur=0;
+    g.fillStyle='rgba(210,230,240,.2)'; g.strokeStyle='rgba(230,240,250,.7)'; g.lineWidth=2; g.beginPath(); g.moveTo(-18,-35); g.lineTo(18,-35); g.quadraticCurveTo(18,-8,3,0); g.quadraticCurveTo(18,8,18,35); g.lineTo(-18,35); g.quadraticCurveTo(-18,8,-3,0); g.quadraticCurveTo(-18,-8,-18,-35); g.fill(); g.stroke();
+    g.fillStyle='#e8b850'; g.beginPath(); g.moveTo(-12,-24); g.lineTo(12,-24); g.quadraticCurveTo(8,-8,1,-2); g.lineTo(-1,-2); g.quadraticCurveTo(-8,-8,-12,-24); g.fill();
+    g.fillRect(-1,-2,2,24); g.beginPath(); g.moveTo(-16,34); g.quadraticCurveTo(0,14,16,34); g.fill(); g.restore(); },
+  clamp(g){ g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=6; g.strokeStyle=lg(g,-40,0,40,0,[[0,'#5a3a20'],[.5,'#a0582a'],[1,'#4a2a10']]); g.lineWidth=12; g.lineCap='round';
+    g.beginPath(); g.moveTo(20,-36); g.lineTo(-24,-36); g.lineTo(-24,36); g.lineTo(20,36); g.stroke(); g.strokeStyle=lg(g,0,-40,0,40,IRON); g.lineWidth=6; g.beginPath(); g.moveTo(20,-50); g.lineTo(20,10); g.stroke();
+    g.fillStyle=lg(g,0,0,40,0,IRON); g.fillRect(8,8,26,10); g.fillRect(-4,-56,48,8); g.restore(); },
+  crossbone(g){ g.save(); for(const a of [-.75,.75]){ g.save(); g.rotate(a); g.scale(.95,.95); DRAW.bone(g); g.restore(); } g.save(); g.translate(0,-4); g.scale(.4,.4); DRAW.skull(g); g.restore(); g.restore(); },
+  giltframe(g){ g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=8; g.fillStyle=lg(g,-44,-44,44,44,GOLD); rrect(g,-42,-42,84,84,6); g.fill(); g.shadowBlur=0;
+    g.fillStyle='#1a0c04'; g.fillRect(-28,-28,56,56); g.strokeStyle='#5a3a08'; g.lineWidth=2; g.strokeRect(-34,-34,68,68);
+    for(const [x,y] of [[-38,-38],[38,-38],[-38,38],[38,38]]){ g.fillStyle='#fff0b0'; circ(g,x,y,5); g.fill(); }
+    g.save(); g.scale(.4,.4); DRAW.eye(g); g.restore(); g.restore(); },
+  ladder(g){ g.save(); g.rotate(-.25); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=6; g.strokeStyle=lg(g,-20,0,20,0,[[0,'#3a2412'],[.5,'#6a4a2a'],[1,'#2a180a']]); g.lineWidth=7; g.lineCap='round';
+    g.beginPath(); g.moveTo(-18,-46); g.lineTo(-20,46); g.moveTo(18,-46); g.lineTo(20,46); g.stroke(); g.lineWidth=5; for(let y=-36;y<=36;y+=14){ if(y===8) continue; g.beginPath(); g.moveTo(-18,y); g.lineTo(18,y+2); g.stroke(); }
+    g.beginPath(); g.moveTo(-18,8); g.lineTo(-4,14); g.moveTo(18,10); g.lineTo(8,4); g.stroke(); g.fillStyle='rgba(60,90,30,.6)'; circ(g,-18,30,6); g.fill(); g.restore(); },
+  hood(g){ g.save(); g.shadowColor='rgba(0,0,0,.6)'; g.shadowBlur=8; g.fillStyle=lg(g,-40,-40,40,40,[[0,'#2a2626'],[1,'#060505']]);
+    g.beginPath(); g.moveTo(0,-48); g.quadraticCurveTo(40,-40,40,6); g.lineTo(46,46); g.lineTo(-46,46); g.lineTo(-40,6); g.quadraticCurveTo(-40,-40,0,-48); g.fill(); g.shadowBlur=0;
+    g.fillStyle='#000'; g.beginPath(); g.ellipse(0,0,22,28,0,0,TAU); g.fill(); g.fillStyle='#ff3a20'; g.shadowColor='#ff3a20'; g.shadowBlur=10; circ(g,-8,-4,3.5); g.fill(); circ(g,8,-4,3.5); g.fill(); g.restore(); },
+});
+function comboIcon(main,sub){ return g=>{ g.save(); g.translate(-6,-6); g.scale(.84,.84); DRAW[main](g); g.restore(); g.save(); g.translate(30,30); g.scale(.4,.4); g.fillStyle='rgba(24,12,6,.9)'; circ(g,0,0,58); g.fill(); g.strokeStyle='#c8a050'; g.lineWidth=5; circ(g,0,0,58); g.stroke(); DRAW[sub](g); g.restore(); }; }
+Object.assign(DRAW,{ moonpearl:comboIcon('moon','vial2'), crimson:comboIcon('moon','mirror'), sandpipe:comboIcon('sand','root'), vise:comboIcon('clamp','reel'), lodgerkey:comboIcon('key','eye'),
+  contract:comboIcon('scroll','tooth'), stormglass:comboIcon('vial','omen'), omenfeast:comboIcon('omen','bowl'), dreadengine:comboIcon('furnace','omen'), begbowl:comboIcon('purse','skull'),
+  twinflame:comboIcon('candle','moth'), kingmaker:comboIcon('crown','bell'), wick:comboIcon('candle','clock'), hlamp:comboIcon('lantern','coin') });
+Object.assign(AU,{
+  voice(n=6){ for(let i=0;i<n;i++){ const d=i*.17+Math.random()*.05, f=90+Math.random()*40; this.tone(f,.16,'sawtooth',.06,f*.8,d,.02); this.noise(.14,.08,500+Math.random()*900,'bandpass',d,6,.02); } },
+  bossHit(){ this.tone(55,2.5,'sawtooth',.18,40,0,.02); this.tone(58,2.5,'sawtooth',.14,41,0,.02); this.noise(1.5,.4,200,'lowpass',0,2,.01); this.toll(); },
+  musicStep(step,t,I){ const c=this.ctx; if(!c) return; const d=Math.max(0,t-c.currentTime); const sc=[110,116.54,130.81,146.83,164.81,174.61,196,220];
+    const bar=Math.floor(step/8)%4, prog=[0,5,3,4][bar];
+    if(step%4===0) this.tone(sc[prog]/2,.32,'triangle',.11+I.danger*.08,0,d,.01);
+    if(step%2===0&&I.danger>.35) this.noise(.08,.12*I.danger,140,'lowpass',d,1,.002);
+    if(step%4===2&&I.danger>.6) this.noise(.05,.06,4000,'highpass',d,1,.002);
+    if(I.fever>0&&Math.random()<.3+I.fever*.08){ const n=sc[(prog+[0,2,4,7][Math.floor(Math.random()*4)])%8]*2*(Math.random()<.3?2:1); this.tone(n,.18,'square',.012+I.fever*.006,0,d,.005); }
+    if(step%16===0) this.tone(sc[prog],2.6,'sine',.025+I.hype*.04,0,d,.4);
+  },
+});
 /* ============================== RENDERER ============================== */
 const canvas=$('gl');
 const R=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
@@ -1632,6 +1780,15 @@ const ropeKnot=add(new THREE.SphereGeometry(.035,10,8),new THREE.MeshStandardMat
 const bellGlow=glowSprite([1,.7,.3],.6,0); bellGlow.position.y=-.2; bellSwing.add(bellGlow);
 let bellT=0;
 
+/* ============================== THE VOICE IN THE WALL ============================== */
+const vent=new THREE.Group(); vent.position.set(2.75,3.45,-2.96); scene.add(vent);
+add(new THREE.BoxGeometry(.78,.46,.04),MAT.dark,0,0,-.03,vent,false);
+(()=>{ const [c,g]=mkCanvas(256,160); g.clearRect(0,0,256,160); g.strokeStyle='#3a332e'; g.lineWidth=12; g.strokeRect(6,6,244,148); g.lineWidth=9; for(let x=36;x<240;x+=30){ g.beginPath(); g.moveTo(x,8); g.lineTo(x,152); g.stroke(); }
+  g.fillStyle='rgba(120,50,20,.6)'; for(let i=0;i<40;i++) g.fillRect(rnd()*256,rnd()*160,3,3);
+  add(new THREE.PlaneGeometry(.8,.48),new THREE.MeshStandardMaterial({map:clampTex(c),transparent:true,metalness:.6,roughness:.6,envMap:envTex}),0,0,.01,vent,false); })();
+const ventEyes=[]; for(const sx of [-1,1]){ const e=add(new THREE.SphereGeometry(.03,12,8),new THREE.MeshBasicMaterial({color:new THREE.Color(0,0,0)}),sx*.09,.02,-.01,vent,false); ventEyes.push(e); }
+const ventLight=new THREE.PointLight(0x80ff60,0,2.2,2); ventLight.position.set(0,0,.4); vent.add(ventLight);
+let voiceOn=0;
 /* ============================== CHALKBOARD (back wall, right) ============================== */
 const board=new THREE.Group(); board.position.set(2.8,2.3,-2.95); board.scale.setScalar(.85); scene.add(board);
 for(const [w,h,x,y] of [[1.5,.07,0,.52],[1.5,.07,0,-.52],[.07,1.11,-.72,0],[.07,1.11,.72,0]]) add(new THREE.BoxGeometry(w,h,.06),MAT.wood,x,y,.02,board);
@@ -1651,7 +1808,8 @@ function drawBoard(){ const g=boardCv.getContext('2d'); const W=1024,H=720;
   g.strokeStyle='rgba(230,230,220,.75)'; g.lineWidth=4; g.strokeRect(50,375,W-110,34); g.fillStyle='rgba(230,230,220,.55)'; g.fillRect(54,379,(W-118)*Math.min(1,f/o),26);
   chalk(g,'TOLLS',50,500,58);
   for(let i=0;i<ROUNDS;i++){ const x=360+i*120; g.strokeStyle='rgba(230,230,220,.85)'; g.lineWidth=5; g.strokeRect(x,445,80,72); if(i<S.round){ g.beginPath(); g.moveTo(x+10,455); g.lineTo(x+70,507); g.moveTo(x+70,455); g.lineTo(x+10,507); g.stroke(); } }
-  const left=Math.max(0,o-f); chalk(g,left>0?`${left} more or the ceiling falls`:'ring the bell',W/2,640,48,'center',left>0?'rgba(235,150,140,.9)':'rgba(240,215,120,.95)');
+  if(S.boss){ const b=BOSS_BY[S.boss]; chalk(g,(boss(S)?'BOSS: ':'BOSS (hooded): ')+b.n,W/2,578,46,'center','rgba(255,110,90,.95)'); }
+  const left=Math.max(0,o-f); chalk(g,left>0?`${left.toLocaleString('en')} more or the ceiling falls`:'ring the bell',W/2,668,42,'center',left>0?'rgba(235,150,140,.9)':'rgba(240,215,120,.95)');
   boardTex.needsUpdate=true; }
 
 /* ============================== RELIQUARY SHELF + RITE STOOL ============================== */
@@ -1775,7 +1933,7 @@ function refresh(){
   if(!S){ drawBoard(); return; }
   const o=owed(S);
   // screen
-  const st=(S.jp>=100&&S.spins>0)?'JACKPOT READY':S.spins>0?'PULL THE LEVER':(S.round<ROUNDS?(S.paid>=o?'RING THE BELL  OR  BUY A TOLL':'BUY A TOLL'):(S.paid>=o?'RING THE BELL':'FEED THE MAW'));
+  const st=(S.jp>=100&&S.spins>0)?'JACKPOT READY':(S.spins>0&&S.lastGrid&&S.holds>0&&!S.held.length)?`PULL · ${S.holds} HOLD${S.holds>1?'S':''}`:(S.held&&S.held.length)?'REELS HELD':S.spins>0?'PULL THE LEVER':(S.round<ROUNDS?(S.paid>=o?'RING THE BELL  OR  BUY A TOLL':'BUY A TOLL'):(S.paid>=o?'RING THE BELL':'FEED THE MAW'));
   setScreen([[`SPINS ${String(S.spins).padStart(2,'0')}`,40,62,64,'#ffb040'],[S.fever?`FEVER x${feverMult(S).toFixed(2)}`:'FEVER  --',984,62,52,S.fever?'#ff7a30':'#7a4a20','right'],
     [lastWin===null?'':(lastWin.bad?lastWin.text:`LAST +${lastWin.v}`),40,158,52,lastWin&&lastWin.bad?'#ff4030':'#ffd070'],[st,984,158,40,'#ffb040','right']]);
   drawBoard();
@@ -1804,7 +1962,10 @@ function pick(x,y){ mv.set(x/innerWidth*2-1,-(y/innerHeight)*2+1); ray.setFromCa
 const canPlay=()=>S&&mode==='play'&&!busy;
 ix(leverKnob,{when:()=>mode==='play',tip:()=>S.spins>0?`<h4>The lever</h4>Pull it. (${S.spins} spins left)`:`<h4>The lever</h4>No spins. Buy a toll on the deck.`,click:()=>pull()});
 ix(leverArm,{when:()=>mode==='play',tip:()=>'<h4>The lever</h4>Pull it.',click:()=>pull()});
-reels.forEach(r=>ix(r.mesh,{when:()=>mode==='play',tip:()=>'<h4>The reels</h4>Click to pull the lever.',click:()=>pull()}));
+reels.forEach((r,c)=>ix(r.mesh,{when:()=>mode==='play',tip:()=>canHold(c)?`<h4>Reel ${c+1}</h4>${S.held.includes(c)?'Held. Click to release.':`Click to hold it for the next spin (${S.holds} hold${S.holds===1?'':'s'} left this toll).`}`:'<h4>The reels</h4>Click to pull the lever.',click:()=>{ if(canHold(c)) toggleHold(c); else pull(); }}));
+function canHold(c){ return S&&!busy&&mode==='play'&&S.spins>0&&S.lastGrid&&((S.held||[]).includes(c)||(S.holds||0)>0)&&(S.jp||0)<100; }
+function toggleHold(c){ if(S.held.includes(c)){ S.held.splice(S.held.indexOf(c),1); S.holds++; AU.click(); } else { if(S.held.length>=4){ say('At least one reel must spin.','',1500); return; } S.held.push(c); S.holds--; AU.tone(140,.2,'square',.07,90); AU.noise(.1,.3,900,'bandpass'); } showHolds(); refresh(); saveRun(); }
+function showHolds(){ for(let c=0;c<5;c++){ const h=S&&(S.held||[]).includes(c); for(let r=0;r<3;r++){ if(h) setCell(r,c,0xb050ff,.55,1.8); else if(cells[r][c].material.userData.hex===0xb050ff) cells[r][c].material.opacity=0; } } }
 ix(btn7.cap,{when:()=>mode==='play',tip:()=>`<h4>Toll of seven</h4>${bundleSpins(S,7)} spins for ${bundleCost(S,7)} coins.<br><span class="dimt">${ROUNDS-S.round} of ${ROUNDS} tolls left for this debt.</span>`,click:()=>buyUI(7)});
 ix(btn3.cap,{when:()=>mode==='play',tip:()=>`<h4>Toll of three</h4>${bundleSpins(S,3)} spins for ${bundleCost(S,3)} coins, and the dark leaves an offering.<br><span class="dimt">${ROUNDS-S.round} of ${ROUNDS} tolls left for this debt.</span>`,click:()=>buyUI(3)});
 ix(face,{when:()=>mode==='play',tip:()=>`<h4>The Maw</h4>Hold to feed it coins.<br>Fed ${S.paid} / ${owed(S)}. Interest ${Math.round(interestRate(S)*100)}% each toll (max ${interestCap(S)}).`,down:()=>startFeed(),up:()=>stopFeed()});
@@ -1819,7 +1980,7 @@ ix(board.children[4],{when:()=>!!S,tip:()=>`<h4>The debt</h4>Owed ${owed(S)}, fe
 relicPlaques.forEach(p=>ix(p,{when:()=>!!S&&(mode==='play'||mode==='shop')&&!busy,tip:()=>{ const r=RELIC_BY[p.userData.id]; const n=cnt(S,r.id); return `<h4>${r.n}${n>1?' ×'+n:''}</h4><span class="dimt">${RARITY[r.r]} relic${n>1?' · effect stacked '+n+' times':''}</span><br>${r.d}<br><i class="dimt">Click to inspect.</i>`; },click:()=>inspect('relic',p.userData.id)}));
 ritePlaques.forEach(p=>ix(p,{when:()=>!!S&&(mode==='play'||mode==='shop')&&!busy,tip:()=>{ const r=RITE_BY[p.userData.id]; return `<h4>${r.n}</h4>${r.d}<br><i class="dimt">Click to inspect.</i>`; },click:()=>inspect('rite',p.userData.id)}));
 shopCards.forEach((c,i)=>ix(c,{when:()=>mode==='shop',tip:()=>{ const o=S.shop[i]; const d=offerDef(o); return `<h4>${d.title}</h4>${d.body}`; },click:()=>buyShop(i),hover:true}));
-offerCards.forEach((c,i)=>ix(c,{when:()=>mode==='offers'||mode==='level',tip:()=>{ if(mode==='level'){ const s=S.levels[i]; return `<h4>${SYM[s].n}: level ${lv(S,s)} → ${lv(S,s)+(has(S,'oil')?2:1)}</h4>Worth ${symValue(S,s)} → ${symValue(S,s)*(has(S,'oil')?4:2)}`; } const o=S.offers[i]; const d=offerDef(o); return `<h4>${d.title}</h4>${d.good?('+ '+d.good+'<br>− '+d.bad):d.body}`; },click:()=>mode==='level'?takeLevel(i):takeOffer(i),hover:true}));
+offerCards.forEach((c,i)=>ix(c,{when:()=>mode==='offers'||mode==='level'||mode==='deal',tip:()=>{ if(mode==='deal') return i?'<h4>Refuse</h4>Walk away.':`<h4>The Lodger's deal</h4>${DEAL_BY[dealId].say}`; if(mode==='level'){ const s=S.levels[i]; return `<h4>${SYM[s].n}: level ${lv(S,s)} → ${lv(S,s)+(has(S,'oil')?2:1)}</h4>Worth ${symValue(S,s)} → ${symValue(S,s)*(has(S,'oil')?4:2)}`; } const o=S.offers[i]; const d=offerDef(o); return `<h4>${d.title}</h4>${d.good?('+ '+d.good+'<br>− '+d.bad):d.body}`; },click:()=>mode==='deal'?dealChoice(i):mode==='level'?takeLevel(i):takeOffer(i),hover:true}));
 /* inspect: a relic or rite held up to the eye, with in-world choices */
 const inspectCard=new THREE.Mesh(new THREE.PlaneGeometry(.62,.87),new THREE.MeshBasicMaterial({transparent:true,depthTest:false,depthWrite:false})); inspectCard.renderOrder=20; inspectCard.visible=false; scene.add(inspectCard);
 function choiceCanvas(text,col){ const [c,g]=mkCanvas(512,160); g.fillStyle=rg(g,256,80,10,260,[[0,col],[1,'#1a0604']]); rrect(g,6,6,500,148,40); g.fill(); g.strokeStyle='#e8c070'; g.lineWidth=6; rrect(g,10,10,492,140,36); g.stroke();
@@ -1837,6 +1998,29 @@ ix(inspectCard,{when:()=>mode==='inspect',tip:()=>{ const d=offerDef(inspectSel)
 ix(inspectBtns[0],{when:()=>mode==='inspect',tip:()=>inspectSel.kind==='relic'?'Sell it to the dark.':(inspectBtns[0].userData.disabled?'Rites can only be performed at the machine.':'Perform it now.'),click:()=>{ if(inspectBtns[0].userData.disabled) return; const sel=inspectSel; closeInspect(); if(sel.kind==='relic') sellRelic(sel.id); else doRite(sel.id); }});
 ix(inspectBtns[1],{when:()=>mode==='inspect',tip:()=>'Put it back.',click:()=>closeInspect()});
 
+/* ---------- trophies, unlocks, secrets ---------- */
+const META_KEY='hollowtoll_meta_v1';
+let META=Object.assign({ach:{},found:{},deals:0,events:0},lsGet(META_KEY)||{});
+function saveMeta(){ lsSet(META_KEY,META); }
+const TROPHIES=[
+  ['debt1','First Payment','Settle a debt.','lamp'],['debt5','Deep Pockets','Reach debt V.','idol'],['escape','Daylight','Settle every debt and walk out.','hood'],
+  ['spin1k','Four Figures','Win 1,000 coins in one spin.','dreadengine'],['spin100k','Obscene','Win 100,000 coins in one spin.','chalice'],['jackpot','Belly of the Machine','Hit a Jackpot spin.','moonpearl'],
+  ['stack3','Hoarder','Own three copies of one relic.','vise'],['shelf7','Full Shelf','Fill the shelf with seven different relics.','twinflame'],['abyss','Stared Back','Form the Abyss.','kingmaker'],
+  ['secret_cross','???','Find a hidden pattern.','crossbone'],['secret_frame','???','Find a hidden pattern.','giltframe'],['secret_stairs','???','Find a hidden pattern.','ladder'],
+  ['boss','Bossbreaker','Settle a boss debt.','blackmass'],['dealer','Gone Native','Accept five deals from the voice in the wall.','contract'],['broke','Penniless','Be crushed with an empty purse.','bowl'],
+  ['fever','Unholy Heat','Reach Fever x2.5.','furnace'],['omens','Omen Magnet','See six Omens in one spin.','omenfeast'],['events','Weathered','Witness five strange events.','stormglass'],
+];
+function applyLocks(){ LOCKED=new Set(TROPHIES.filter(t=>!META.ach[t[0]]).map(t=>t[3])); }
+applyLocks();
+let toastQ=[], toastBusy=false;
+function trophy(id){ if(META.ach[id]) return; const t=TROPHIES.find(x=>x[0]===id); if(!t) return; META.ach[id]=true; saveMeta(); applyLocks();
+  const name=t[1]==='???'?'Hidden Pattern: '+PAT[id.replace('secret_','')].n:t[1]; toastQ.push(`<div class="tt sc">Trophy</div><div class="tn">${name}</div><div class="tu">Unlocked relic: <b>${RELIC_BY[t[3]].n}</b></div>`); nextToast(); }
+function nextToast(){ if(toastBusy||!toastQ.length) return; toastBusy=true; const el=$('toast'); el.innerHTML=toastQ.shift(); el.className='show'; AU.choir(2); AU.tone(784,.5,'triangle',.08,0,.1); AU.tone(1175,.6,'triangle',.07,0,.25);
+  setTimeout(()=>{ el.className=''; setTimeout(()=>{ toastBusy=false; nextToast(); },500); },3200); }
+function trophyChecks(){ if(!S) return; if(S.debt>=5) trophy('debt5'); if(uniqueRelics(S).some(id=>cnt(S,id)>=3)) trophy('stack3'); if(uniqueRelics(S).length>=7) trophy('shelf7'); }
+function openTrophies(){ const box=$('trophyList'); box.innerHTML=TROPHIES.map(t=>{ const got=META.ach[t[0]]; const nm=t[1]==='???'?(got?'Hidden Pattern: '+PAT[t[0].replace('secret_','')].n:'???'):t[1];
+    return `<div class="trow ${got?'got':''}"><img src="${iconURL(RELIC_BY[t[3]].icon)}"><div><div class="sc">${nm}</div><div class="dimt" style="font-size:14px">${t[2]}</div><div style="font-size:13px">${got?'Unlocked':'Locked'}: ${got?RELIC_BY[t[3]].n:'a relic'}</div></div></div>`; }).join('');
+  $('trophyCount').textContent=`${Object.keys(META.ach).length} / ${TROPHIES.length}`; $('trophies').classList.remove('hidden'); }
 /* tooltip + pointer */
 let hovered=null, holding=null;
 function showTip(o,e){ const t=$('tooltip'); if(!o||!o.tip||isTouch){ t.classList.add('hidden'); return; } t.innerHTML=o.tip(); t.classList.remove('hidden'); const w=t.offsetWidth,h=t.offsetHeight; t.style.left=clamp(e.clientX+16,6,innerWidth-w-6)+'px'; t.style.top=clamp(e.clientY-h-14,6,innerHeight-h-6)+'px'; }
@@ -1857,7 +2041,9 @@ function showOnly(id){ ['title','death','ending'].forEach(x=>$(x).classList.togg
 function newRun(){ AU.init(); S=newState(); shownCoins=S.pocket; lastWin=null; const st=stats(); st.runs++; lsSet(STATS_KEY,st);
   crusherSpeed=.35; crusherY=crusherTarget=ceilingY(1); crusher.position.y=crusherY; $('blackout').style.opacity=0;
   beginDebt(S,rnd); showOnly(null); mode='play'; refresh(); startDebtIntro(); }
-function startDebtIntro(){ AU.toll(); setView('center'); banner(`DEBT ${roman(S.debt)}`,`${owed(S)} coins · three tolls`); saveRun();
+function startDebtIntro(){ AU.toll(); setView('center'); saveRun(); trophyChecks();
+  if(S.boss){ banner(`BOSS: ${BOSS_BY[S.boss].n.toUpperCase()}`,BOSS_BY[S.boss].d+(boss(S)?'':' (Your hood protects you.)'),true); AU.bossHit(); AU.laugh(); flash('#600000',.5); shake=.4; say(`Debt ${roman(S.debt)} is a boss debt: ${BOSS_BY[S.boss].d} Break it for a rare reward.`,'bad',5000); }
+  else banner(`DEBT ${roman(S.debt)}`,`${owed(S).toLocaleString('en')} coins · three tolls`);
   setTimeout(()=>{ if(S.offers.length) showOffers(()=>enterShop()); else enterShop(); },1700); }
 function showOffers(after){
   mode='offers'; updateTouchBar(); offerAfter=after||null; setView('offers'); offerAnim=0; AU.whisper();
@@ -1947,6 +2133,34 @@ function celebrate(ctx,q){
   if(tier>=4) setTimeout(()=>{ coinRain(40); AU.jackpot(); },700);
 }
 const STREAK=[[9,'UNHOLY'],[7,'POSSESSED'],[5,'ON FIRE'],[3,'HOT STREAK']];
+/* events */
+let eventTint=0;
+async function eventIntro(id){ const e=EVENT_BY[id]; banner(e.n,e.d,id==='storm'||id==='moon'); say(e.d,'',2200); META.events=(META.events||0)+1; saveMeta(); if(META.events>=5) trophy('events');
+  if(id==='moon'){ AU.choir(2); flash('#a00000',.45); eventTint=1; AU.bossHit(); }
+  else if(id==='hum'){ AU.whisper(); AU.tension(1.5); bloomBoost=.8; }
+  else if(id==='double'){ AU.jackpot(); flash('#a08000',.35); shake=.3; }
+  else if(id==='gift'){ const amt=Math.max(5,Math.round(owed(S)*.06)); S.pocket+=amt; coinRain(45); AU.choir(1); say(`Coins drip from the ceiling. +${amt.toLocaleString('en')}`,'good',2600); S.event=null; refresh(); }
+  else if(id==='storm'){ AU.bad(); AU.laugh(); flash('#600000',.6); shake=.5; eventTint=1; }
+  else if(id==='crowns'){ AU.jackpot(); flash('#b09000',.3); }
+  await sleep(1100*(turbo?.5:1)); }
+/* the voice in the wall */
+const VOICE_HELLO=['Psst. Down here. No... up here.','You pull so nicely. I have an offer.','The Maw does not have to know.','I have watched you. Listen.','Coins for whispers. Whispers for coins.'];
+let dealId=null;
+function dealCardTex(id){ const d=DEAL_BY[id]; return clampTex(cardCanvas({icon:'lodgerkey',title:'The Lodger',rar:'A deal through the grate',body:d.say+(dealPower(S)>1?' (Your contract sweetens it.)':''),band:'#3a6a2a',foot:'ACCEPT'})); }
+function refuseCardTex(){ return clampTex(cardCanvas({icon:'hood',title:'Walk away',rar:'Refuse',body:'Close your ears. It will remember you said no.',band:'#4a3a2a',foot:'REFUSE'})); }
+function showDeal(id){ dealId=id; mode='deal'; updateTouchBar(); setView('offers'); offerAnim=0; voiceOn=1; AU.voice(8);
+  say(VOICE_HELLO[Math.floor(rnd()*VOICE_HELLO.length)]+' '+DEAL_BY[id].say,'voice',0);
+  const tex=[dealCardTex(id),refuseCardTex()]; offerCards.forEach((c,i)=>{ if(i<2){ c.userData.mat.map=tex[i]; c.userData.mat.emissiveMap=tex[i]; c.userData.mat.needsUpdate=true; c.userData.full=false; c.visible=true; } else c.visible=false; }); }
+function dealChoice(i){ const id=dealId; offerCards.forEach(c=>c.visible=false); mode='play'; setView('center'); voiceOn=0; dealId=null;
+  if(i===1){ AU.voice(3); say('"Suit yourself. I will be here. I am always here."','voice',2600); refresh(); afterSpinCheck(); return; }
+  const out=acceptDeal(S,id,rnd); META.deals=(META.deals||0)+1; saveMeta(); if(META.deals>=5) trophy('dealer');
+  AU.voice(4); AU.buy(); flash('#204010',.35);
+  const msg={wager:`You slide ${out.wager} coins through the grate. Now win twice.`,dreadspins:`Dread seeps in. ${out.spins} extra spins.`,jpfill:'The Jackpot gauge fills to the brim.',fever:'Heat crawls up your arms. Your Fever burns.',
+    swap:out.got?`${RELIC_BY[out.gone].n} is gone. ${RELIC_BY[out.got].n} sits on your shelf.`:'It took your relic and gave nothing back. Laughter.',sharpen:'Something sharp scrapes behind the reels...',tip:'"Crowns. Watch for crowns."'}[id];
+  say(msg,'voice',3200); refresh(); saveRun();
+  if(id==='sharpen'&&S.levels.length){ setTimeout(()=>showLevels(()=>afterSpinCheck()),900); return; }
+  if(id==='swap') trophyChecks();
+  afterSpinCheck(); }
 /* spin */
 let leverT=0;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -1954,9 +2168,11 @@ async function pull(){
   if(!canPlay()) return;
   if(S.spins<=0){ say(S.round<ROUNDS?'No spins. Press a toll on the deck.':'Your tolls are spent.','',2000); return; }
   busy=true; clearTimeout(doomTimer); S.spins--; refresh(); setView('center');
-  cells.flat().forEach(m=>m.material.opacity=0);
+  cells.flat().forEach(m=>{ m.material.opacity=0; m.material.userData.hex=0; });
   leverT=1; AU.lever();
-  const jpNow=(S.jp||0)>=100;
+  const jpNow=(S.jp||0)>=100; if(jpNow&&S.held.length){ S.holds+=S.held.length; S.held=[]; }
+  const heldNow=S.held.slice();
+  S.event=jpNow?null:rollEvent(S,rnd); if(S.event) await eventIntro(S.event);
   S.golden=!jpNow&&rnd()<goldenChance(S); goldMode=(S.golden||jpNow)?1:0;
   if(jpNow){ banner('JACKPOT','the machine empties its belly'); AU.jackpot(); AU.toll(); bulbFlash=5; flash('#a07000',.35); shake=.2; jpMat.emissiveIntensity=6; }
   else if(S.golden){ banner('GOLDEN SPIN',`every pattern pays x${has(S,'gambler')?3:2}`); AU.jackpot(); bulbFlash=3; flash('#8a6a00',.25); }
@@ -1971,6 +2187,7 @@ async function pull(){
   if(tease||danger) setTimeout(()=>{ AU.tension((tease?2.4:1.8)*tf); bulbFlash=2.4*tf; if(danger){ mawPulse=2; eyeball.material.emissiveIntensity=2; } },(600+2*220)*tf);
   const stops=[];
   reels.forEach((reel,c)=>{
+    if(heldNow.includes(c)){ AU.click(); return; }
     const target=(reel.cur+6)%N_SLOTS;
     for(let i=0;i<N_SLOTS;i++){ const dd=((i-reel.cur)%N_SLOTS+N_SLOTS)%N_SLOTS; if(dd>1&&dd<N_SLOTS-1) reel.strip[i]=randomSymbol(S,rnd); }
     reel.strip[(target+1)%N_SLOTS]=grid[0][c]; reel.strip[target]=grid[1][c]; reel.strip[(target+N_SLOTS-1)%N_SLOTS]=grid[2][c];
@@ -1983,8 +2200,10 @@ async function pull(){
   await Promise.all(stops);
   if(danger){ shake=.2; flash('#400000',.35); }
   await resolveSpin(grid);
-  if(jpNow){ coinBurst(70); shake=.5; }
-  busy=false; refresh(); saveRun(); afterSpinCheck();
+  if(jpNow){ coinBurst(70); shake=.5; trophy('jackpot'); }
+  busy=false; refresh(); saveRun();
+  if(S.spins>0&&!S.voiceUsed&&mode==='play'&&rnd()<voiceChance(S)){ S.voiceUsed=true; const d=pickDeal(S,rnd); if(d){ showDeal(d); return; } }
+  afterSpinCheck();
 }
 function pulseRelic(id,label,delay=0){ setTimeout(()=>{ const p=relicPlaques.find(p=>p.visible&&p.userData.id===id); if(!p) return; p.userData.pulse=1; const w=p.getWorldPosition(new THREE.Vector3()); w.y+=.2; floatText(w,`<span style="font-size:17px">${label||RELIC_BY[id].n}</span>`); AU.click(); },delay); }
 async function resolveSpin(grid){
@@ -2001,6 +2220,10 @@ async function resolveSpin(grid){
     await sleep(Math.max(200,500-i*60)*tf);
   }
   ctx.trig.forEach((t,k)=>pulseRelic(t,null,k*140));
+  for(const t of (ctx.secrets||[])){ const key=t==='fall'?'stairs':t; if(!META.found[key]){ META.found[key]=true; saveMeta(); setTimeout(()=>{ banner('SECRET PATTERN',PAT[t].n.toUpperCase()); AU.choir(3); bloomBoost=1.2; },900); trophy('secret_'+key); } }
+  if(ctx.omens>=6) trophy('omens'); if(ctx.pats.some(p=>p.t==='abyss')) trophy('abyss');
+  if(ctx.skimmed) say(`The Skimmer takes ${ctx.skimmed.toLocaleString('en')}.`,'bad',1800);
+  if(ctx.wagerWon) { banner('WAGER WON','+'+ctx.wagerWon.toLocaleString('en')); AU.voice(3); } else if(ctx.wagerLost) say(`The Lodger keeps your ${ctx.wagerLost} coins. Giggling.`,'voice',2600);
   const q=owed(S);
   if(ctx.devour){ AU.hunger(); AU.bad(); flash('#600000',.7); shake=.6; ctx.line.forEach(([r,c])=>setCell(r,c,0xff0000,1,3)); }
   else if(ctx.voided){ AU.bad(); flash('#5a0000',.5); shake=.25; say(`${ctx.omens} Omens. The Hunger licks this spin clean.`,'bad'); lastWin={bad:true,text:'VOID'}; }
@@ -2023,6 +2246,7 @@ async function resolveSpin(grid){
   (ctx.grow||[]).forEach(([id,txt],k)=>pulseRelic(id,txt,300+k*200));
   if(ctx.hunger!==undefined){ await sleep(400); AU.hunger(); flash('#300000',.7); shake=.35; say(`Your Dread overflows. The Hunger takes ${ctx.hunger} coins.`,'bad',3500); }
   else if(ctx.omens&&!ctx.voided&&!ctx.devour) say(ctx.omens===1?'An Omen. Your Dread grows.':`${ctx.omens} Omens. Your Dread grows.`,'bad',1800);
+  if(ctx.total>=1000) trophy('spin1k'); if(ctx.total>=100000) trophy('spin100k'); if(feverMult(S)>=2.5) trophy('fever'); trophyChecks();
   const st=stats(); if(ctx.total>st.bestSpin){ st.bestSpin=ctx.total; lsSet(STATS_KEY,st); }
   refresh(); await sleep(200*tf);
 }
@@ -2047,7 +2271,8 @@ async function ringBell(){
   const finishing=S.debt>=FINAL_DEBT&&!S.endless;
   const res=settle(S,rnd);
   let msg=`The Maw swallows ${res.paid}.`; if(res.surplus) msg+=` It spits back ${res.surplus}.`; if(res.bonus) msg+=` Hourglass: +${res.bonus}.`; if(res.tick) msg+=` The Tick bursts: +${res.tick}.`; if(res.tithe) msg+=` Tithe: +${res.tithe}.`;
-  countBanner('DEBT PAID',res.paid); AU.choir(3); coinRain(30); bloomBoost=1;
+  countBanner(res.wasBoss?'BOSS BROKEN':'DEBT PAID',res.paid); if(res.wasBoss){ trophy('boss'); AU.bossHit(); coinRain(60); }
+  trophy('debt1'); AU.choir(3); coinRain(30); bloomBoost=1;
   say(msg,'good',4000); if(res.tick) pulseRelic('tick','+'+res.tick); if(res.glut) pulseRelic('glutton','All symbols +1',300);
   lastWin=null; refresh(); await sleep(1300);
   setView('up'); await sleep(800); crusherTarget=ceilingY(S.debt); AU.grind(); shake=.2; await sleep(2000);
@@ -2072,6 +2297,7 @@ async function die(){
   AU.grind(2.4); AU.screech(2.4); crusherTarget=1.95; crusherSpeed=1.15; shake=.6;
   for(let i=0;i<6;i++){ setTimeout(()=>{ AU.heart(); flash('#400000',.25); },i*Math.max(120,420-i*60)); }
   await sleep(2050);
+  if(S.pocket<=0) trophy('broke');
   AU.crunch(); AU.boom(); flash('#c00000',1); shake=2.2; camRoll=.55; camDrop=.9; bloomBoost=1.5;
   showGore(); await sleep(1700);
   AU.flatline(); $('blackout').style.transition='opacity 1.6s'; $('blackout').style.opacity=1; await sleep(2200);
@@ -2099,11 +2325,11 @@ function hideGore(){ $('gore').classList.add('hidden'); $('gore').innerHTML=''; 
 function resetScene(){ camRoll=0; camDrop=0; lightsOut=0; flames.forEach(f=>f.out=false); hideGore(); crusherSpeed=.35; crusherY=crusherTarget=ceilingY(S?S.debt:1); crusher.position.y=crusherY; $('blackout').style.opacity=0; busy=false; doorTarget=0; offerCards.forEach(c=>c.visible=false); shopCards.forEach(c=>c.visible=false); bar(null); }
 function toTitle(){ stopFeed(); if(S&&mode!=='dead') saveRun(); mode='title'; $('help').classList.add('hidden'); showOnly('title'); setView('title'); resetScene(); refreshTitle(); }
 function refreshTitle(){ const st=stats(); $('titleStats').innerHTML=st.runs?`Descents: ${st.runs} · Deepest debt: ${st.bestDebt} · Escapes: ${st.wins} · Best spin: ${st.bestSpin}`:''; const sv=lsGet(SAVE_KEY); $('btnContinue').classList.toggle('hidden',!(sv&&sv.debt)); }
-function continueRun(){ const sv=lsGet(SAVE_KEY); if(!sv) return; AU.init(); S=Object.assign(newState(),sv); shownCoins=S.pocket; lastWin=null; resetScene(); showOnly(null); mode='play'; setView('center'); refresh();
+function continueRun(){ const sv=lsGet(SAVE_KEY); if(!sv) return; AU.init(); S=Object.assign(newState(),sv); S.held=[]; S.lastGrid=null; S.event=null; shownCoins=S.pocket; lastWin=null; resetScene(); showOnly(null); mode='play'; setView('center'); refresh();
   if(S.levels&&S.levels.length) showLevels(()=>{ if(S.offers.length) showOffers(()=>enterShop()); else enterShop(); }); else if(S.offers&&S.offers.length) showOffers(S.round===0?()=>enterShop():null); else afterSpinCheck(); reels.forEach(paintReel); }
 function buildHelp(){
-  const hs=$('helpSyms'); hs.innerHTML=''; SYM_IDS.filter(s=>s!=='mask'||(S&&has(S,'mask'))).forEach(s=>{ const d=document.createElement('div'); d.className='helpSym'; d.innerHTML=`<img src="${iconURL(s)}"><div><div class="sc">${SYM[s].n}</div><div class="dimt" style="font-size:13px">${s==='omen'?'adds Dread':s==='mask'?'wild':'worth '+(S?symValue(S,s):SYM[s].v)+(S&&lv(S,s)>1?' · Lv '+roman(lv(S,s)):'')}</div></div>`; hs.appendChild(d); });
-  const hp=$('helpPats'); hp.innerHTML=''; Object.entries(PAT).forEach(([k,p])=>{ const on=new Set(p.shape==='all'?Array.from({length:15},(_,i)=>`${Math.floor(i/5)},${i%5}`):p.shape.map(([r,c])=>r+','+c)); let mini='<div class="mini">'; for(let r=0;r<3;r++) for(let c=0;c<5;c++) mini+=`<i class="${on.has(r+','+c)?'on':''}"></i>`; mini+='</div>'; const d=document.createElement('div'); d.className='pat'; d.innerHTML=`<div class="sc">${p.n}</div>${mini}<div>×${S?patMult(S,k):p.m}</div>`; hp.appendChild(d); }); }
+  const hs=$('helpSyms'); hs.innerHTML=''; SYM_IDS.filter(s=>(s!=='mask'||(S&&has(S,'mask')))&&(!['moon','sand'].includes(s)||(S&&symWeight(S,s)>0))).forEach(s=>{ const d=document.createElement('div'); d.className='helpSym'; d.innerHTML=`<img src="${iconURL(s)}"><div><div class="sc">${SYM[s].n}</div><div class="dimt" style="font-size:13px">${s==='omen'?'adds Dread':s==='mask'?'wild':s==='sand'?'patterns with it give a free spin':'worth '+(S?symValue(S,s):SYM[s].v)+(S&&lv(S,s)>1?' · Lv '+roman(lv(S,s)):'')}</div></div>`; hs.appendChild(d); });
+  const hp=$('helpPats'); hp.innerHTML=''; Object.entries(PAT).forEach(([k,p])=>{ const hidden=p.secret&&!META.found[k==='fall'?'stairs':k]; const on=new Set(p.shape==='all'?Array.from({length:15},(_,i)=>`${Math.floor(i/5)},${i%5}`):p.shape.map(([r,c])=>r+','+c)); let mini='<div class="mini">'; for(let r=0;r<3;r++) for(let c=0;c<5;c++) mini+=`<i class="${on.has(r+','+c)?'on':''}"></i>`; mini+='</div>'; const d=document.createElement('div'); d.className='pat'; d.innerHTML=hidden?`<div class="sc">???</div><div class="mini">${'<i></i>'.repeat(15)}</div><div class="dimt">a hidden shape</div>`:`<div class="sc">${p.n}${p.secret?' ✦':''}</div>${mini}<div>×${S?patMult(S,k):p.m}</div>`; hp.appendChild(d); }); }
 function openHelp(){ buildHelp(); const box=$('helpOwn'); if(box){ if(!S){ box.innerHTML=''; } else {
     let h='<div class="sc dimt">Your relics</div><div style="display:grid;gap:6px;margin:6px 0 14px">';
     h+=S.relics.length?uniqueRelics(S).map(id=>{ const r=RELIC_BY[id]; return `<div class="helpSym"><img src="${iconURL(r.icon)}"><div><span class="sc">${r.n}${cnt(S,id)>1?' <b class="gold">×'+cnt(S,id)+'</b>':''}</span> <span class="dimt" style="font-size:12px">${RARITY[r.r]}</span><div style="font-size:14px">${r.d}</div></div></div>`; }).join(''):'<span class="dimt">None yet.</span>';
@@ -2115,6 +2341,7 @@ function openHelp(){ buildHelp(); const box=$('helpOwn'); if(box){ if(!S){ box.i
 $('btnNew').onclick=()=>{ AU.init(); AU.click(); if(lsGet(SAVE_KEY)&&!confirm('Abandon your current descent?')) return; lsSet(SAVE_KEY,null); resetScene(); newRun(); };
 $('btnContinue').onclick=()=>{ AU.click(); continueRun(); };
 $('btnHow').onclick=()=>{ AU.init(); openHelp(); };
+$('btnTrophies').onclick=()=>{ AU.init(); openTrophies(); }; $('trophyClose').onclick=()=>$('trophies').classList.add('hidden');
 $('helpClose').onclick=()=>$('help').classList.add('hidden'); $('btnHelp').onclick=openHelp;
 $('btnSound').onclick=()=>{ AU.init(); $('btnSound').textContent='Sound: '+(AU.toggle()?'on':'off'); };
 const setTurboLabel=()=>$('btnTurbo').textContent='Turbo: '+(turbo?'on':'off');
@@ -2122,13 +2349,13 @@ $('btnTurbo').onclick=()=>{ turbo=!turbo; lsSet('hollowtoll_turbo',turbo); setTu
 $('btnMenu').onclick=toTitle;
 $('btnRetry').onclick=()=>{ resetScene(); newRun(); };
 $('btnToTitle').onclick=()=>{ S=null; toTitle(); };
-$('btnLeave').onclick=()=>{ const st=stats(); st.wins++; lsSet(STATS_KEY,st); lsSet(SAVE_KEY,null); S=null; $('blackout').style.opacity=1; setTimeout(()=>{ toTitle(); $('titleStats').innerHTML+='<br><span class="gold">You walked out. For now.</span>'; },1300); };
+$('btnLeave').onclick=()=>{ trophy('escape'); const st=stats(); st.wins++; lsSet(STATS_KEY,st); lsSet(SAVE_KEY,null); S=null; $('blackout').style.opacity=1; setTimeout(()=>{ toTitle(); $('titleStats').innerHTML+='<br><span class="gold">You walked out. For now.</span>'; },1300); };
 $('btnStay').onclick=()=>{ S.endless=true; showOnly(null); mode='play'; refresh(); startDebtIntro(); };
 addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
   if(k==='f'&&!e.repeat){ if(canPlay()) startFeed(); return; }
   if(e.repeat) return;
-  if(k==='escape'){ if(!$('help').classList.contains('hidden')){ $('help').classList.add('hidden'); return; } if(mode==='inspect'){ closeInspect(); return; } if(mode==='shop') exitShop(); return; }
+  if(k==='escape'){ if(!$('trophies').classList.contains('hidden')){ $('trophies').classList.add('hidden'); return; } if(!$('help').classList.contains('hidden')){ $('help').classList.add('hidden'); return; } if(mode==='inspect'){ closeInspect(); return; } if(mode==='shop') exitShop(); return; }
   if(k==='h'){ $('help').classList.contains('hidden')?openHelp():$('help').classList.add('hidden'); return; }
   if(k==='m'){ $('btnSound').click(); return; }
   if(k==='t'){ $('btnTurbo').click(); return; }
@@ -2139,6 +2366,7 @@ addEventListener('keydown',e=>{
 addEventListener('keyup',e=>{ if(e.key.toLowerCase()==='f') stopFeed(); });
 
 /* ============================== LOOP ============================== */
+const MUS={next:0,step:0};
 let bulbFlash=0, last=performance.now(), time=0, fovKick=0, goldMode=0, baseFov=55;
 function easeOutBack(t){ const c1=1.2,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); }
 function resize(){ const w=innerWidth,h=innerHeight,a=w/h; R.setSize(w,h,false); camera.aspect=a; baseFov=Math.max(55,2*Math.atan(Math.tan(23*Math.PI/180)/a)*180/Math.PI); camera.fov=baseFov; camera.updateProjectionMatrix();
@@ -2175,14 +2403,19 @@ function frame(now){
   // plaques pulse/hover
   for(const p of relicPlaques.concat(ritePlaques)){ if(!p.visible) continue; p.userData.pulse=Math.max(0,(p.userData.pulse||0)-dt*1.5); const h=hovered&&hovered.mesh===p; const s=1+p.userData.pulse*.35+(h?.1:0); p.scale.setScalar(lerp(p.scale.x,s,Math.min(1,dt*12))); p.userData.mat.emissiveIntensity=.25+p.userData.pulse*1.5+(h?.2:0); }
   // offer cards
-  if(mode==='offers'||mode==='level'){ offerAnim=Math.min(1,offerAnim+dt*1.6); const e=easeOutBack(offerAnim);
-    offerCards.forEach((c,i)=>{ if(!c.visible) return; const n=mode==='level'?S.levels.length:S.offers.length; const x=(i-(n-1)/2)*.74; const h=hovered&&hovered.mesh===c;
+  if(mode==='offers'||mode==='level'||mode==='deal'){ offerAnim=Math.min(1,offerAnim+dt*1.6); const e=easeOutBack(offerAnim);
+    offerCards.forEach((c,i)=>{ if(!c.visible) return; const n=mode==='deal'?2:mode==='level'?S.levels.length:S.offers.length; const x=(i-(n-1)/2)*.74; const h=hovered&&hovered.mesh===c;
       c.position.set(x,lerp(.2,1.62,e)+(h?.05:0)+Math.sin(time*1.5+i)*.012,.95+(h?.08:0)); c.lookAt(camera.position); c.rotateZ((1-e)*(i-1)*.6); c.scale.setScalar(h?1.07:1); c.userData.mat.emissiveIntensity=h?.7:.45; }); }
   if(S){ jpLevel+=(Math.min(1,(S.jp||0)/100)-jpLevel)*Math.min(1,dt*4); jpLiq.scale.x=Math.max(.001,jpLevel*1.28); jpMat.emissiveIntensity=Math.max(1.2+jpLevel*1.5+(jpLevel>.99?Math.sin(time*8)*1.2+1:0),jpMat.emissiveIntensity-dt*3); }
   if(mode==='inspect'){ const dir=camera.getWorldDirection(tmpV.clone()), up=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion), right=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
     const base=camera.position.clone().addScaledVector(dir,1.25);
     inspectCard.position.copy(base).addScaledVector(up,.08+Math.sin(time*1.4)*.008); inspectCard.quaternion.copy(camera.quaternion);
     inspectBtns.forEach((b,i)=>{ const h=hovered&&hovered.mesh===b; b.position.copy(base).addScaledVector(up,-.44).addScaledVector(right,(i?.18:-.18)); b.quaternion.copy(camera.quaternion); b.scale.setScalar(h?1.08:1); b.material.opacity=b.userData.disabled&&i===0?.4:1; }); }
+  voiceOn=Math.max(mode==='deal'?1:0,voiceOn-dt*.5); ventEyes.forEach((e,i)=>{ const k=voiceOn*(1.5+Math.sin(time*7+i)*.3)*((Math.sin(time*.8)>.97)?.1:1); e.material.color.setRGB(k*.6,k*1.6,k*.3); }); ventLight.intensity=voiceOn*1.2;
+  eventTint=Math.max(0,eventTint-dt*.35); scene.fog.color.setRGB(.024+eventTint*.18,.016,.012);
+  if(S&&boss(S)&&mode!=='title'){ bulbs.forEach((b,i)=>{ if(bulbFlash<=1.5) b.material.emissive.setRGB(1,.12,.06); }); }
+  if(S&&AU.ctx&&AU.on&&mode!=='title'&&mode!=='dead'){ const o=owed(S), pr=Math.min(1,S.paid/Math.max(1,o)); const I={danger:Math.min(1,(1-pr)*(S.round/ROUNDS)+(S.boss?.3:0)),fever:S.fever,hype:Math.min(1,bloomBoost)};
+    const bpm=84+S.fever*5+I.danger*30; if(MUS.next<AU.ctx.currentTime) MUS.next=AU.ctx.currentTime+.05; while(MUS.next<AU.ctx.currentTime+.12){ AU.musicStep(MUS.step,MUS.next,I); MUS.next+=60/bpm/2; MUS.step++; } }
   // crusher
   const sp=crusherSpeed*(crusherTarget<crusherY?1:3); if(Math.abs(crusherTarget-crusherY)>.001) crusherY+=clamp(crusherTarget-crusherY,-sp*dt,sp*dt); crusher.position.y=crusherY;
   chains.forEach((ch,i)=>{ ch.rotation.z=Math.sin(time*.7+i)*.04; ch.rotation.x=Math.cos(time*.5+i*2)*.03; });
@@ -2211,7 +2444,7 @@ function redrawFontTextures(){ panelTex.image=panelCanvas(); panelTex.needsUpdat
   decalMeshes.forEach(m=>scene.remove(m)); decalMeshes=decals.map(f=>f()); engr.forEach(([m,t])=>{ m.material.map=engraved(t); m.material.needsUpdate=true; }); refresh(); }
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(redrawFontTextures);
 refresh(); refreshTitle();
-window.__HT={get S(){return S;},set S(v){S=v;},refresh,takeLevel:i=>takeLevel(i),inspect:(k,i)=>inspect(k,i),pull,buyUI,ringBell,enterShop,exitShop,die,takeOffer,startFeed,stopFeed,get mode(){return mode;},camera,setView,reels};
+window.__HT={get S(){return S;},set S(v){S=v;},refresh,showDeal:id=>showDeal(id),dealChoice:i=>dealChoice(i),toggleHold:c=>toggleHold(c),trophy:id=>trophy(id),takeLevel:i=>takeLevel(i),inspect:(k,i)=>inspect(k,i),pull,buyUI,ringBell,enterShop,exitShop,die,takeOffer,startFeed,stopFeed,get mode(){return mode;},camera,setView,reels};
 
 })();
 </script>
