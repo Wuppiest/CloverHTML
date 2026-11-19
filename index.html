@@ -1612,7 +1612,7 @@ function counterCanvas(n){ const [c,g]=mkCanvas(512,128);
     g.fillStyle='rgba(0,0,0,.35)'; g.fillRect(x,12,44,12); g.fillRect(x,104,44,12); }
   return c; }
 let counterCv=counterCanvas(0); const counterTex=clampTex(counterCv);
-M(new THREE.PlaneGeometry(.92,.23),new THREE.MeshBasicMaterial({map:counterTex,toneMapped:false}),0,1.02,.505,machine,false);
+const counterMat=new THREE.MeshBasicMaterial({map:counterTex,toneMapped:false}); M(new THREE.PlaneGeometry(.92,.23),counterMat,0,1.02,.505,machine,false); let counterGlow=0;
 const cb=bezel(.92,.23,.02,.025,.03,MAT.brass); cb.position.set(0,1.02,.49); machine.add(cb);
 let counterShown=-1;
 function updateCounter(n){ n=Math.round(n); if(n===counterShown) return; counterShown=n; const nc=counterCanvas(n); counterCv.getContext('2d').drawImage(nc,0,0); counterTex.needsUpdate=true; }
@@ -1943,6 +1943,8 @@ for(let i=0;i<14;i++){ const b=new THREE.Mesh(new THREE.PlaneGeometry(.45,6),bea
 function fireworks(n=4,delay=0){ for(let q=0;q<n;q++) setTimeout(()=>{ const p=new THREE.Vector3((rnd()-.5)*3.6,2.4+rnd()*1.2,-1.4+rnd()*1.8); const col=WARM[Math.floor(rnd()*WARM.length)];
   emit(p,70,{color:col,speed:2.2,life:1.3,grav:2.2,drag:1.4,size:.05,k:2.6}); emit(p,25,{color:0xfff0c8,speed:.9,life:.5,grav:0,size:.08,k:3}); AU.noise(.25,.2,900,'bandpass',0,1,.002,250); },delay+q*240+rnd()*120); }
 let candleFlare=0, machineRattle=0;
+function geyser(t){ if(t<2) return; const n=t*t*10; for(let k=0;k<n;k++) setTimeout(()=>{ const m=new THREE.Mesh(coinGeo,coinMat); const p=tray.localToWorld(new THREE.Vector3((rnd()-.5)*.3,.12,0)); m.position.copy(p); scene.add(m);
+    bursts.push({m,v:new THREE.Vector3((rnd()-.5)*1.4,3.5+rnd()*2.5+t*.4,.6+rnd()*1.2),spin:new THREE.Vector3(rnd()*14,rnd()*14,rnd()*14),life:2.8+rnd()}); if(k%3===0) AU.coin(); },k*18); }
 function natural(t){ candleFlare=Math.max(candleFlare,.4+t*.35); machineRattle=Math.max(machineRattle,.004*t*t);
   if(t>=2){ for(let k=0;k<t*2;k++) setTimeout(()=>emit(machine.localToWorld(new THREE.Vector3((rnd()-.5)*1.2,3.3,-.2)),6,{color:0x6a5a50,speed:.15,up:.6,life:2.4,grav:-.15,drag:.4,size:.12,k:.5,shrink:0}),k*90); }
   if(t>=3){ AU.noise(1,.12,200,'lowpass',0,3,.1,80); for(let k=0;k<40*t;k++) emit(new THREE.Vector3((rnd()-.5)*5,crusherY-.4,-2.4+rnd()*4),1,{color:0x9a8a70,speed:.1,life:2.2,grav:2,size:.022,k:.8}); }
@@ -2002,7 +2004,16 @@ function refresh(){
   ritePlaques.forEach((p,i)=>{ const id=S.rites[i]; p.visible=!!id; if(id){ p.userData.mat.map=plaqueTex('rite',id); p.userData.mat.emissiveMap=p.userData.mat.map; p.userData.mat.needsUpdate=true; p.userData.id=id; } });
   updateTray();
 }
-function updateTray(){ const n=Math.min(50,Math.floor(Math.sqrt(S?S.pocket:0)*2.2)); trayCoins.forEach((m,i)=>m.visible=i<n); }
+function updateTray(){ const n=Math.min(50,Math.floor(Math.sqrt(S?S.pocket:0)*2.2)); trayCoins.forEach((m,i)=>m.visible=i<n); updatePile(); }
+const PILE_N=360; const pile=new THREE.InstancedMesh(coinGeo,coinMat,PILE_N); pile.castShadow=true; pile.receiveShadow=true; scene.add(pile); pile.count=0;
+const pileSpots=[]; (()=>{ const o=new THREE.Object3D(); for(let i=0;i<PILE_N;i++){ const a=rnd()*Math.PI-Math.PI, r=Math.sqrt(rnd())*(.25+i/PILE_N*1.1); const x=Math.cos(a)*r*1.3, z=-.45+Math.abs(Math.sin(a))*r*.5+.15;
+  const h=Math.max(0,(1-r/1.4))*(.02+i/PILE_N*.16)*rnd(); o.position.set(x,.005+h,z); o.rotation.set((rnd()-.5)*.5,rnd()*3,(rnd()-.5)*.5); o.updateMatrix(); pileSpots.push(o.matrix.clone()); pile.setMatrixAt(i,o.matrix); } pile.instanceMatrix.needsUpdate=true; })();
+pile.position.set(0,0,0);
+let pileShown=0;
+function updatePile(){ const want=S?Math.min(PILE_N,Math.floor(Math.log10(Math.max(1,S.pocket))*Math.log10(Math.max(1,S.pocket))*14)):0; pileShown=want; }
+function coinRiver(fromWorld,n,delay=0){ for(let k=0;k<n;k++) setTimeout(()=>{ const m=new THREE.Mesh(coinGeo,coinMat); m.position.copy(fromWorld); scene.add(m);
+    const to=tray.localToWorld(new THREE.Vector3((rnd()-.5)*.7,.07,(rnd()-.5)*.2));
+    flyers.push({m,from:fromWorld.clone().add(new THREE.Vector3((rnd()-.5)*.1,(rnd()-.5)*.1,.05)),to,t:0,dur:.45+rnd()*.25,spin:6+rnd()*10,arc:.35+rnd()*.3,land:true}); },delay+k*35); }
 
 /* ---------- interactables ---------- */
 const IX=[];
@@ -2184,7 +2195,7 @@ function celebrate(ctx,q){
   if(ctx.pats.some(p=>p.t==='abyss')){ tier=5; name='THE ABYSS OPENS'; }
   if(!tier){ if(hype>.7) natural(hype>1.3?2:1); coinBurst(Math.max(1,Math.round((2+8*ratio/.15)*(1+hype*.5)))); if(ratio>=.08&&ctx.pats.length>=2) ring(cellWorld(1,2),0xffd080,1.4,.6,1.6); if(ctx.total>=8) AU.hype(ctx.pats.length); return; }
   const ftier=Math.min(5,tier+(hype>1.3?2:hype>.7?1:0)); fxWin(ftier); natural(ftier); countBanner(name,ctx.total); if(tier>=2) AU.jackpot(); else AU.hype(4); if(tier>=2) AU.choir(tier-2); bulbFlash=.8+tier*.8;
-  coinBurst(tier*tier*6); coinRain(tier>=3?(tier-2)*35:0); shake=.08+tier*.1; fovKick=Math.min(3,.3+tier*.5); bloomBoost=Math.min(.8,.3+tier*.12);
+  coinBurst(tier*tier*6); coinRain(tier>=3?(tier-2)*35:0); geyser(ftier); shake=.08+tier*.1; fovKick=Math.min(3,.3+tier*.5); bloomBoost=Math.min(.8,.3+tier*.12);
   if(tier>=2) flash(tier>=4?'#b08000':'#806000',.05+tier*.07); eyeball.material.emissiveIntensity=1+tier*.6;
   if(tier>=4) setTimeout(()=>{ coinRain(40); AU.jackpot(); },700);
 }
@@ -2331,7 +2342,7 @@ async function resolveSpin(grid){
     p.cells.forEach(([r,c])=>setCell(r,c,p.mirrored?0x9fe0ff:0xffc060,1));
     const mid=p.cells[Math.floor(p.cells.length/2)], w=cellWorld(mid[0],mid[1]);
     floatText(w,'+'+p.pay,(ctx.voided||ctx.devour)?'bad':'',`${PAT[p.t].n} · ${SYM[p.s].n} ${p.base}×${p.mult}${p.mirrored?' ×2':''}`);
-    if(!ctx.voided&&!ctx.devour){ fxCells(p.cells,p.s,Math.round(2+20*I)); if(I>=.35&&p.cells.length>=4){ ring(w,SYMCOL[p.s]||0xffd080,1.2+I*1.2,.6,2.2); fxWarp=Math.max(fxWarp,.04*I); } }
+    if(!ctx.voided&&!ctx.devour){ const nc=Math.max(1,Math.min(26,Math.round(Math.log2(p.pay+1)*1.4*(1+hype*.6)))); const per=Math.max(1,Math.round(nc/p.cells.length)); p.cells.forEach(([r,c],k)=>coinRiver(cellWorld(r,c),per,k*40)); for(const [r,c] of p.cells) emit(cellWorld(r,c),Math.round(3+6*I),{color:0xffe090,speed:.25,up:.35,life:1.2,grav:-.1,drag:.8,size:.025,k:2.6}); fxCells(p.cells,p.s,Math.round(2+20*I)); if(I>=.35&&p.cells.length>=4){ ring(w,SYMCOL[p.s]||0xffd080,1.2+I*1.2,.6,2.2); fxWarp=Math.max(fxWarp,.04*I); } }
     AU.chime(i++); bulbFlash=.4+I*1.2; fovKick=Math.min(1.6,fovKick+.1+.5*I); if(!ctx.voided&&!ctx.devour) coinBurst(Math.max(1,Math.round(6*I)));
     await sleep(Math.max(200,500-i*60)*tf);
   }
@@ -2552,9 +2563,11 @@ function frame(now){
   const sp=crusherSpeed*(crusherTarget<crusherY?1:3); if(Math.abs(crusherTarget-crusherY)>.001) crusherY+=clamp(crusherTarget-crusherY,-sp*dt,sp*dt); crusher.position.y=crusherY;
   chains.forEach((ch,i)=>{ ch.rotation.z=Math.sin(time*.7+i)*.04; ch.rotation.x=Math.cos(time*.5+i*2)*.03; });
   const da=dust.geometry.attributes.position.array; for(let i=0;i<dustN;i++){ da[i*3+1]-=dt*.03; da[i*3]+=Math.sin(time*.3+i)*dt*.02; if(da[i*3+1]<0) da[i*3+1]=4.5; } dust.geometry.attributes.position.needsUpdate=true;
-  for(let i=flyers.length-1;i>=0;i--){ const f=flyers[i]; f.t+=dt/f.dur; const t=Math.min(1,f.t); f.m.position.lerpVectors(f.from,f.to,t); f.m.position.y+=Math.sin(t*Math.PI)*.8; f.m.rotation.x+=dt*f.spin; f.m.rotation.z+=dt*f.spin*.7; if(t>=1){ scene.remove(f.m); flyers.splice(i,1); } }
+  for(let i=flyers.length-1;i>=0;i--){ const f=flyers[i]; f.t+=dt/f.dur; const t=Math.min(1,f.t); f.m.position.lerpVectors(f.from,f.to,t); f.m.position.y+=Math.sin(t*Math.PI)*(f.arc??.8); f.m.rotation.x+=dt*f.spin; f.m.rotation.z+=dt*f.spin*.7; if(t>=1){ if(f.land){ AU.coin(); emit(f.m.position,3,{color:0xfff0c0,speed:.5,life:.3,grav:3,size:.035,k:3}); counterGlow=Math.min(1.5,counterGlow+.08); } scene.remove(f.m); flyers.splice(i,1); } }
   for(let i=bursts.length-1;i>=0;i--){ const b=bursts[i]; b.life-=dt; b.v.y-=9.8*dt; b.m.position.addScaledVector(b.v,dt); if(b.m.position.y<.01){ b.m.position.y=.01; b.v.y*=-.35; b.v.x*=.6; b.v.z*=.6; if(Math.abs(b.v.y)>.4&&rnd()<.3) AU.coin(); } b.m.rotation.x+=b.spin.x*dt; b.m.rotation.y+=b.spin.y*dt; if(b.life<=0){ scene.remove(b.m); bursts.splice(i,1); } }
-  if(S){ const d=S.pocket-shownCoins; if(d!==0){ const step=Math.sign(d)*Math.max(1,Math.abs(d)*dt*5); shownCoins=Math.abs(step)>=Math.abs(d)?S.pocket:shownCoins+step; } updateCounter(shownCoins); }
+  if(S){ const d=S.pocket-shownCoins; if(d!==0){ const step=Math.sign(d)*Math.max(1,Math.abs(d)*dt*5); shownCoins=Math.abs(step)>=Math.abs(d)?S.pocket:shownCoins+step; if(d>0){ counterGlow=Math.min(1.5,counterGlow+dt*2); if(rnd()<dt*25) AU.tone(1800+Math.min(1600,counterGlow*900),.03,'square',.018); } } updateCounter(shownCoins); }
+  counterGlow=Math.max(0,counterGlow-dt*.8); counterMat.color.setRGB(1+counterGlow*1.4,1+counterGlow*1.1,1+counterGlow*.3);
+  if(pile.count!==pileShown){ pile.count+=Math.sign(pileShown-pile.count)*Math.max(1,Math.round(Math.abs(pileShown-pile.count)*dt*3)); if(Math.abs(pile.count-pileShown)<2) pile.count=pileShown; }
   // camera
   const V=VIEWS[view]; const k=1-Math.pow(.02,dt); camPos.lerp(V.p,k*.9); camLook.lerp(V.l,k*.9);
   shake=Math.max(0,shake-dt*.8); const sx=(rnd()-.5)*shake*.15, sy=(rnd()-.5)*shake*.15;
