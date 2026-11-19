@@ -2480,9 +2480,15 @@ function coinBurst(n){ openTray(); for(let i=0;i<n;i++){ const m=new THREE.Mesh(
   bursts.push({m,v:new THREE.Vector3((rnd()-.5)*2.2,2+rnd()*2.5,.8+rnd()*1.6),spin:new THREE.Vector3(rnd()*12,rnd()*12,rnd()*12),life:2.2+rnd()}); } }
 
 /* celebrations */
-let bloomBoost=0, countTimer=null;
-function countBanner(title,total,bad=false){ banner(title,'+0',bad); clearInterval(countTimer); let t0=performance.now(), dur=Math.min(1600,500+Math.log10(total+1)*350), k=0;
-  countTimer=setInterval(()=>{ const p=Math.min(1,(performance.now()-t0)/dur); const v=Math.round(total*(1-Math.pow(1-p,3))); $('banner').querySelector('.s').textContent='+'+v.toLocaleString(LANG==='de'?'de':'en')+(LANG==='de'?' Münzen':' coins'); AU.tick(k++%30); if(p>=1) clearInterval(countTimer); },45); }
+let bloomBoost=0;
+let countState=null;
+function fmtCoins(v){ return '+'+Math.round(v).toLocaleString(LANG==='de'?'de':'en')+(LANG==='de'?' Münzen':' coins'); }
+function countBanner(title,total,bad=false){ const q=S?Math.max(1,owed(S)):0; const pct=q?Math.round(total/q*100):0;
+  const tail=q&&title!=='DEBT PAID'&&title!=='BOSS BROKEN'?(LANG==='de'?` · ${pct}% der Schuld`:` · ${pct}% of the debt`):'';
+  banner(title,fmtCoins(0)+tail,bad); countState={total,tail,t0:performance.now(),dur:Math.min(1100,350+Math.log10(total+1)*220),k:0};
+  clearTimeout(countState.fin); countState.fin=setTimeout(()=>{ $('banner').querySelector('.s').textContent=fmtCoins(total)+tail; },1300); }
+function countTick(){ const c=countState; if(!c) return; const p=Math.min(1,(performance.now()-c.t0)/c.dur); const v=c.total*(1-Math.pow(1-p,3));
+  $('banner').querySelector('.s').textContent=fmtCoins(p>=1?c.total:v)+c.tail; if(c.k++%2===0) AU.tick(c.k%30); if(p>=1) countState=null; }
 function coinRain(n){ for(let i=0;i<n;i++){ const m=new THREE.Mesh(coinGeo,coinMat); m.position.set((rnd()-.5)*5.5,crusherY-.6-rnd()*.6,-2.4+rnd()*4.5); scene.add(m);
   bursts.push({m,v:new THREE.Vector3((rnd()-.5)*.4,-rnd()*1.5,(rnd()-.5)*.4),spin:new THREE.Vector3(rnd()*14,rnd()*14,rnd()*14),life:3+rnd()*1.5}); } }
 const TIERS=[[4,'IMPOSSIBLE',5],[1.5,'MONSTROUS WIN',4],[.6,'HUGE WIN',3],[.25,'BIG WIN',2]];
@@ -2865,6 +2871,7 @@ function frame(now){
   if(S&&AU.ctx&&AU.on&&mode!=='title'&&mode!=='dead'){ const o=owed(S), pr=Math.min(1,S.paid/Math.max(1,o)); const I={danger:Math.min(1,(1-pr)*(S.round/ROUNDS)+(S.boss?.3:0)),fever:S.fever,hype:Math.min(1,bloomBoost)};
     const bpm=84+S.fever*5+I.danger*30; if(MUS.next<AU.ctx.currentTime) MUS.next=AU.ctx.currentTime+.05; while(MUS.next<AU.ctx.currentTime+.12){ AU.musicStep(MUS.step,MUS.next,I); MUS.next+=60/bpm/2; MUS.step++; } }
   updateParticles(dt); ambientTick(dt); ambientFrame(dt);
+  countTick();
   trayHold=Math.max(0,trayHold-dt); if(feedTimer) trayHold=Math.max(trayHold,.8); const trayWant=trayHold>0?1:0; const tp=trayOut; trayOut+=(trayWant-trayOut)*Math.min(1,dt*(trayWant?9:3)); tray.position.z=.2+trayOut*.38; if(trayWant&&tp<.05&&trayOut>=.05) AU.noise(.25,.15,500,'bandpass',0,3,.01,200);
   hype=Math.max(0,hype-dt*.015); candleFlare=Math.max(hype*.25,candleFlare-dt*.6); machineRattle=Math.max(0,machineRattle-dt*.01);
   machine.position.x=machineRattle?(rnd()-.5)*machineRattle:0; machine.position.y=machineRattle?(rnd()-.5)*machineRattle*.5:0;
